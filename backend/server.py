@@ -467,6 +467,74 @@ class CheckInResponse(BaseModel):
     check_in_time: str
     notes: Optional[str] = None
 
+FEEDBACK_CATEGORIES = [
+    {"key": "dieta", "label": "Dieta", "prompt": "Como foi sua dieta nessa semana?"},
+    {"key": "treino", "label": "Treino", "prompt": "Como foi seu treino nessa semana?"},
+    {"key": "sono", "label": "Sono", "prompt": "Como foi seu sono nessa semana?"},
+    {"key": "bem_estar", "label": "Bem-estar", "prompt": "Como foi seu bem-estar nessa semana?"},
+    {"key": "fotos_medidas", "label": "Fotos e Medidas", "prompt": "Como foi sua evolucao nas fotos e medidas?"},
+]
+
+FEEDBACK_CATEGORY_MAP = {item["key"]: item for item in FEEDBACK_CATEGORIES}
+
+class FeedbackPlanUpdate(BaseModel):
+    mode: str = "weekly"
+    weekly_days: List[int] = Field(default_factory=list)
+    monthly_days: List[int] = Field(default_factory=list)
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    reminder_enabled: bool = True
+    reminder_message: Optional[str] = None
+    active: bool = True
+
+class FeedbackPlanResponse(BaseModel):
+    id: str
+    student_id: str
+    personal_id: str
+    mode: str
+    weekly_days: List[int] = Field(default_factory=list)
+    monthly_days: List[int] = Field(default_factory=list)
+    period_start: Optional[str] = None
+    period_end: Optional[str] = None
+    reminder_enabled: bool = True
+    reminder_message: Optional[str] = None
+    active: bool = True
+    created_at: str
+    updated_at: str
+
+class FeedbackSubmissionCreate(BaseModel):
+    reference_date: Optional[str] = None
+    answers: Dict[str, Optional[str]] = Field(default_factory=dict)
+
+class FeedbackReplyItem(BaseModel):
+    key: str
+    reply: Optional[str] = None
+
+class FeedbackReplyUpdate(BaseModel):
+    replies: List[FeedbackReplyItem] = Field(default_factory=list)
+
+class FeedbackSubmissionItemResponse(BaseModel):
+    key: str
+    label: str
+    prompt: str
+    student_feedback: Optional[str] = None
+    personal_reply: Optional[str] = None
+    personal_replied_at: Optional[str] = None
+
+class FeedbackSubmissionResponse(BaseModel):
+    id: str
+    student_id: str
+    personal_id: str
+    reference_date: str
+    status: str
+    items: List[FeedbackSubmissionItemResponse]
+    student_submitted_at: Optional[str] = None
+    created_at: str
+    updated_at: str
+    answered_items: int = 0
+    replied_items: int = 0
+    completion_percentage: int = 0
+
 # ==================== NOTIFICATION MODELS ====================
 
 class NotificationCreate(BaseModel):
@@ -862,6 +930,8 @@ async def delete_student(student_id: str, personal: dict = Depends(get_personal_
     await db.payments.delete_many({"student_id": student_id})
     await db.plans.delete_many({"student_id": student_id})
     await db.checkins.delete_many({"student_id": student_id})
+    await db.feedback_plans.delete_many({"student_id": student_id})
+    await db.feedback_submissions.delete_many({"student_id": student_id})
     await db.evolution_photos.delete_many({"student_id": student_id})
     await db.workout_sessions.delete_many({"student_id": student_id})
     
@@ -1350,6 +1420,122 @@ async def get_student_financial(
 
 # ==================== CHECK-INS ====================
 
+def _clean_optional_text(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = str(value).strip()
+    return cleaned if cleaned else None
+
+def _parse_date_input(value: str, field_name: str) -> datetime:
+    try:
+        return datetime.strptime(value, "%Y-%m-%d")
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail=f"{field_name} deve estar no formato YYYY-MM-DD")
+
+def _weekday_sunday_zero(target_date: datetime) -> int:
+    # Python weekday: Monday=0 ... Sunday=6. We store Sunday=0 ... Saturday=6.
+    return (target_date.weekday() + 1) % 7
+
+def _sanitize_weekly_days(values: List[int]) -> List[int]:
+    days = sorted({int(value) for value in (values or [])})
+    if any(day < 0 or day > 6 for day in days):
+        raise HTTPException(status_code=400, detail="weekly_days aceita somente valores de 0 a 6")
+    return days
+
+def _sanitize_monthly_days(values: List[int]) -> List[int]:
+    days = sorted({int(value) for value in (values or [])})
+    if any(day < 1 or day > 31 for day in days):
+        raise HTTPException(status_code=400, detail="monthly_days aceita somente valores de 1 a 31")
+    return days
+
+def _is_feedback_day(plan_doc: Dict[str, Any], target_date: datetime) -> bool:
+    if not plan_doc or plan_doc.get("active") is False:
+        return False
+
+    target_date_str = target_date.strftime("%Y-%m-%d")
+    period_start = plan_doc.get("period_start")
+    period_end = plan_doc.get("period_end")
+
+    if period_start and target_date_str < period_start:
+        return False
+    if period_end and target_date_str > period_end:
+        return False
+
+    mode = plan_doc.get("mode", "weekly")
+    weekly_days = {int(day) for day in (plan_doc.get("weekly_days") or [])}
+    monthly_days = {int(day) for day in (plan_doc.get("monthly_days") or [])}
+
+    if mode == "weekly":
+        return _weekday_sunday_zero(target_date) in weekly_days
+    if mode == "monthly":
+        return target_date.day in monthly_days
+    return False
+
+def _build_feedback_items(
+    answers: Dict[str, Optional[str]],
+    existing_items: Optional[List[Dict[str, Any]]] = None
+) -> List[Dict[str, Any]]:
+    items = []
+    existing_by_key = {
+        str(item.get("key")): item
+        for item in (existing_items or [])
+        if item.get("key")
+    }
+
+    for category in FEEDBACK_CATEGORIES:
+        key = category["key"]
+        existing_item = existing_by_key.get(key, {})
+        has_new_answer = key in answers
+        student_feedback = (
+            _clean_optional_text(answers.get(key))
+            if has_new_answer
+            else _clean_optional_text(existing_item.get("student_feedback"))
+        )
+
+        items.append({
+            "key": key,
+            "label": category["label"],
+            "prompt": category["prompt"],
+            "student_feedback": student_feedback,
+            "personal_reply": _clean_optional_text(existing_item.get("personal_reply")),
+            "personal_replied_at": existing_item.get("personal_replied_at")
+        })
+
+    return items
+
+def _feedback_summary(items: List[Dict[str, Any]]) -> Dict[str, int]:
+    answered_items = 0
+    replied_items = 0
+
+    for item in items:
+        has_student_feedback = bool(_clean_optional_text(item.get("student_feedback")))
+        has_personal_reply = bool(_clean_optional_text(item.get("personal_reply")))
+
+        if has_student_feedback:
+            answered_items += 1
+            if has_personal_reply:
+                replied_items += 1
+
+    completion_percentage = int(round((replied_items / answered_items) * 100)) if answered_items else 0
+
+    return {
+        "answered_items": answered_items,
+        "replied_items": replied_items,
+        "completion_percentage": completion_percentage
+    }
+
+def _feedback_status(items: List[Dict[str, Any]]) -> str:
+    summary = _feedback_summary(items)
+    if summary["answered_items"] == 0:
+        return "pending"
+    return "completed" if summary["answered_items"] == summary["replied_items"] else "pending"
+
+def _build_feedback_submission_response(doc: Dict[str, Any]) -> FeedbackSubmissionResponse:
+    response_doc = dict(doc)
+    summary = _feedback_summary(response_doc.get("items") or [])
+    response_doc.update(summary)
+    return FeedbackSubmissionResponse(**response_doc)
+
 @api_router.post("/checkins", response_model=CheckInResponse)
 async def create_checkin(checkin: CheckInCreate, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "student":
@@ -1433,6 +1619,223 @@ async def get_student_frequency(
         "unique_days": len(dates),
         "frequency_by_date": dates
     }
+
+@api_router.get("/checkins/feedback-plan/{student_id}", response_model=FeedbackPlanResponse)
+async def get_feedback_plan(
+    student_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] == "personal":
+        student = await db.users.find_one({"id": student_id, "personal_id": current_user["id"], "role": "student"})
+        if not student:
+            raise HTTPException(status_code=404, detail="Aluno nao encontrado")
+    elif current_user["role"] == "student":
+        if student_id != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Acesso negado")
+    else:
+        raise HTTPException(status_code=403, detail="Perfil sem permissao para acessar planejamento")
+
+    plan_doc = await db.feedback_plans.find_one({"student_id": student_id}, {"_id": 0})
+    if not plan_doc:
+        raise HTTPException(status_code=404, detail="Planejamento de feedback nao encontrado")
+
+    return FeedbackPlanResponse(**plan_doc)
+
+@api_router.put("/checkins/feedback-plan/{student_id}", response_model=FeedbackPlanResponse)
+async def upsert_feedback_plan(
+    student_id: str,
+    payload: FeedbackPlanUpdate,
+    personal: dict = Depends(get_personal_user)
+):
+    student = await db.users.find_one({"id": student_id, "personal_id": personal["id"], "role": "student"})
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno nao encontrado")
+
+    mode = _clean_optional_text(payload.mode or "") or "weekly"
+    mode = mode.lower()
+    if mode not in ["weekly", "monthly"]:
+        raise HTTPException(status_code=400, detail="mode deve ser weekly ou monthly")
+
+    weekly_days = _sanitize_weekly_days(payload.weekly_days)
+    monthly_days = _sanitize_monthly_days(payload.monthly_days)
+
+    if mode == "weekly" and not weekly_days:
+        raise HTTPException(status_code=400, detail="Selecione ao menos um dia da semana")
+    if mode == "monthly" and not monthly_days:
+        raise HTTPException(status_code=400, detail="Selecione ao menos um dia do mes")
+
+    period_start = _clean_optional_text(payload.period_start)
+    period_end = _clean_optional_text(payload.period_end)
+    if period_start:
+        _parse_date_input(period_start, "period_start")
+    if period_end:
+        _parse_date_input(period_end, "period_end")
+    if period_start and period_end and period_start > period_end:
+        raise HTTPException(status_code=400, detail="period_end deve ser igual ou posterior a period_start")
+
+    now = datetime.now(timezone.utc).isoformat()
+    existing = await db.feedback_plans.find_one({"student_id": student_id}, {"_id": 0})
+
+    plan_doc = {
+        "id": existing["id"] if existing else str(uuid.uuid4()),
+        "student_id": student_id,
+        "personal_id": personal["id"],
+        "mode": mode,
+        "weekly_days": weekly_days,
+        "monthly_days": monthly_days,
+        "period_start": period_start,
+        "period_end": period_end,
+        "reminder_enabled": bool(payload.reminder_enabled),
+        "reminder_message": _clean_optional_text(payload.reminder_message),
+        "active": bool(payload.active),
+        "created_at": existing["created_at"] if existing else now,
+        "updated_at": now
+    }
+
+    await db.feedback_plans.update_one(
+        {"student_id": student_id},
+        {"$set": plan_doc},
+        upsert=True
+    )
+
+    return FeedbackPlanResponse(**plan_doc)
+
+@api_router.post("/checkins/feedback-submissions", response_model=FeedbackSubmissionResponse)
+async def create_feedback_submission(
+    payload: FeedbackSubmissionCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Apenas alunos podem enviar feedback")
+
+    student_id = current_user["id"]
+    personal_id = current_user.get("personal_id")
+    if not personal_id:
+        raise HTTPException(status_code=400, detail="Aluno sem personal vinculado")
+
+    plan_doc = await db.feedback_plans.find_one({"student_id": student_id, "active": True}, {"_id": 0})
+    if not plan_doc:
+        raise HTTPException(status_code=400, detail="Nao existe planejamento de feedback ativo para este aluno")
+
+    reference_date = _clean_optional_text(payload.reference_date) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    target_date = _parse_date_input(reference_date, "reference_date")
+    if not _is_feedback_day(plan_doc, target_date):
+        raise HTTPException(status_code=400, detail="Feedback nao esta agendado para esta data")
+
+    existing = await db.feedback_submissions.find_one(
+        {"student_id": student_id, "reference_date": reference_date},
+        {"_id": 0}
+    )
+
+    now = datetime.now(timezone.utc).isoformat()
+    items = _build_feedback_items(payload.answers or {}, existing.get("items") if existing else None)
+
+    submission_doc = {
+        "id": existing["id"] if existing else str(uuid.uuid4()),
+        "student_id": student_id,
+        "personal_id": personal_id,
+        "reference_date": reference_date,
+        "status": _feedback_status(items),
+        "items": items,
+        "student_submitted_at": now,
+        "created_at": existing["created_at"] if existing else now,
+        "updated_at": now
+    }
+
+    await db.feedback_submissions.update_one(
+        {"id": submission_doc["id"]},
+        {"$set": submission_doc},
+        upsert=True
+    )
+
+    return _build_feedback_submission_response(submission_doc)
+
+@api_router.get("/checkins/feedback-submissions", response_model=List[FeedbackSubmissionResponse])
+async def list_feedback_submissions(
+    student_id: Optional[str] = None,
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: dict = Depends(get_current_user)
+):
+    query: Dict[str, Any] = {}
+
+    if current_user["role"] == "personal":
+        if student_id:
+            student = await db.users.find_one({"id": student_id, "personal_id": current_user["id"], "role": "student"})
+            if not student:
+                raise HTTPException(status_code=404, detail="Aluno nao encontrado")
+            query["student_id"] = student_id
+        else:
+            students = await db.users.find(
+                {"personal_id": current_user["id"], "role": "student"},
+                {"id": 1, "_id": 0}
+            ).to_list(1000)
+            student_ids = [student["id"] for student in students]
+            if not student_ids:
+                return []
+            query["student_id"] = {"$in": student_ids}
+        query["personal_id"] = current_user["id"]
+    elif current_user["role"] == "student":
+        query["student_id"] = current_user["id"]
+    else:
+        raise HTTPException(status_code=403, detail="Perfil sem permissao para consultar feedback")
+
+    submissions = await db.feedback_submissions.find(
+        query,
+        {"_id": 0}
+    ).sort("reference_date", -1).to_list(limit)
+
+    return [_build_feedback_submission_response(submission) for submission in submissions]
+
+@api_router.patch("/checkins/feedback-submissions/{submission_id}/replies", response_model=FeedbackSubmissionResponse)
+async def reply_feedback_submission(
+    submission_id: str,
+    payload: FeedbackReplyUpdate,
+    personal: dict = Depends(get_personal_user)
+):
+    submission = await db.feedback_submissions.find_one({"id": submission_id}, {"_id": 0})
+    if not submission:
+        raise HTTPException(status_code=404, detail="Feedback nao encontrado")
+    if submission.get("personal_id") != personal["id"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+
+    if not payload.replies:
+        raise HTTPException(status_code=400, detail="Nenhuma resposta foi enviada")
+
+    reply_map: Dict[str, Optional[str]] = {}
+    for reply_item in payload.replies:
+        key = _clean_optional_text(reply_item.key)
+        if not key or key not in FEEDBACK_CATEGORY_MAP:
+            raise HTTPException(status_code=400, detail=f"Categoria invalida: {reply_item.key}")
+        reply_map[key] = _clean_optional_text(reply_item.reply)
+
+    now = datetime.now(timezone.utc).isoformat()
+    items = submission.get("items") or []
+    for item in items:
+        key = item.get("key")
+        if key in reply_map:
+            item["personal_reply"] = reply_map[key]
+            item["personal_replied_at"] = now if reply_map[key] else None
+
+    status = _feedback_status(items)
+
+    await db.feedback_submissions.update_one(
+        {"id": submission_id},
+        {
+            "$set": {
+                "items": items,
+                "status": status,
+                "updated_at": now
+            }
+        }
+    )
+
+    updated_doc = {
+        **submission,
+        "items": items,
+        "status": status,
+        "updated_at": now
+    }
+    return _build_feedback_submission_response(updated_doc)
 
 # ==================== EVOLUTION PHOTOS ====================
 
