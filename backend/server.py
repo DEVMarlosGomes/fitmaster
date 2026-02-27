@@ -468,14 +468,15 @@ class CheckInResponse(BaseModel):
     notes: Optional[str] = None
 
 FEEDBACK_CATEGORIES = [
-    {"key": "dieta", "label": "Dieta", "prompt": "Como foi sua dieta nessa semana?"},
-    {"key": "treino", "label": "Treino", "prompt": "Como foi seu treino nessa semana?"},
-    {"key": "sono", "label": "Sono", "prompt": "Como foi seu sono nessa semana?"},
-    {"key": "bem_estar", "label": "Bem-estar", "prompt": "Como foi seu bem-estar nessa semana?"},
-    {"key": "fotos_medidas", "label": "Fotos e Medidas", "prompt": "Como foi sua evolucao nas fotos e medidas?"},
+    {"key": "dieta", "label": "Dieta", "prompt": "Qual foi a adesao da dieta no periodo?"},
+    {"key": "treino", "label": "Treino", "prompt": "Qual foi a adesao ao treino no periodo?"},
+    {"key": "sono", "label": "Sono", "prompt": "Como ficou a qualidade do sono no periodo?"},
+    {"key": "bem_estar", "label": "Bem-estar", "prompt": "Como voce avalia seu bem-estar no periodo?"},
 ]
 
 FEEDBACK_CATEGORY_MAP = {item["key"]: item for item in FEEDBACK_CATEGORIES}
+FEEDBACK_SCORE_KEYS = {item["key"] for item in FEEDBACK_CATEGORIES}
+REQUIRED_FEEDBACK_PHOTO_KEYS = ["front", "side", "back"]
 
 class FeedbackPlanUpdate(BaseModel):
     mode: str = "weekly"
@@ -502,9 +503,28 @@ class FeedbackPlanResponse(BaseModel):
     created_at: str
     updated_at: str
 
+class FeedbackScoreInput(BaseModel):
+    completion_percentage: int = Field(..., ge=0, le=100)
+    observation: Optional[str] = None
+
+class FeedbackMeasurementsInput(BaseModel):
+    fasting_weight: float = Field(..., gt=0)
+    waist_circumference: float = Field(..., gt=0)
+    abdominal_circumference: float = Field(..., gt=0)
+    hip_circumference: Optional[float] = Field(default=None, gt=0)
+
+class FeedbackPhotosInput(BaseModel):
+    front: Optional[str] = None
+    side: Optional[str] = None
+    back: Optional[str] = None
+
 class FeedbackSubmissionCreate(BaseModel):
     reference_date: Optional[str] = None
     answers: Dict[str, Optional[str]] = Field(default_factory=dict)
+    scores: Dict[str, FeedbackScoreInput] = Field(default_factory=dict)
+    general_observations: Optional[str] = None
+    measurements: Optional[FeedbackMeasurementsInput] = None
+    photos: Optional[FeedbackPhotosInput] = None
 
 class FeedbackReplyItem(BaseModel):
     key: str
@@ -513,11 +533,17 @@ class FeedbackReplyItem(BaseModel):
 class FeedbackReplyUpdate(BaseModel):
     replies: List[FeedbackReplyItem] = Field(default_factory=list)
 
+class FeedbackReminderRequest(BaseModel):
+    student_ids: List[str] = Field(default_factory=list)
+    message: Optional[str] = None
+
 class FeedbackSubmissionItemResponse(BaseModel):
     key: str
     label: str
     prompt: str
     student_feedback: Optional[str] = None
+    completion_percentage: Optional[int] = None
+    student_observation: Optional[str] = None
     personal_reply: Optional[str] = None
     personal_replied_at: Optional[str] = None
 
@@ -528,6 +554,10 @@ class FeedbackSubmissionResponse(BaseModel):
     reference_date: str
     status: str
     items: List[FeedbackSubmissionItemResponse]
+    general_observations: Optional[str] = None
+    measurements: Optional[FeedbackMeasurementsInput] = None
+    photos: Optional[FeedbackPhotosInput] = None
+    is_structured_report: bool = False
     student_submitted_at: Optional[str] = None
     created_at: str
     updated_at: str
@@ -1465,17 +1495,65 @@ def _is_feedback_day(plan_doc: Dict[str, Any], target_date: datetime) -> bool:
     weekly_days = {int(day) for day in (plan_doc.get("weekly_days") or [])}
     monthly_days = {int(day) for day in (plan_doc.get("monthly_days") or [])}
 
+    if mode == "daily":
+        return True
     if mode == "weekly":
         return _weekday_sunday_zero(target_date) in weekly_days
     if mode == "monthly":
         return target_date.day in monthly_days
     return False
 
+def _normalize_text_for_match(value: Optional[str]) -> str:
+    cleaned = _clean_optional_text(value) or ""
+    normalized = unicodedata.normalize("NFKD", cleaned.lower())
+    return "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+def _is_student_female(student_doc: Dict[str, Any]) -> bool:
+    normalized_gender = _normalize_text_for_match(student_doc.get("gender"))
+    return normalized_gender.startswith("fem")
+
+def _sanitize_feedback_scores(
+    scores: Dict[str, FeedbackScoreInput]
+) -> Dict[str, Dict[str, Optional[Any]]]:
+    sanitized: Dict[str, Dict[str, Optional[Any]]] = {}
+    for key, score in (scores or {}).items():
+        if key not in FEEDBACK_SCORE_KEYS:
+            raise HTTPException(status_code=400, detail=f"Categoria invalida para score: {key}")
+        score_doc = score.model_dump() if isinstance(score, FeedbackScoreInput) else dict(score or {})
+        completion_percentage = score_doc.get("completion_percentage")
+        if completion_percentage is None:
+            raise HTTPException(status_code=400, detail=f"completion_percentage e obrigatorio em {key}")
+        try:
+            completion_percentage = int(completion_percentage)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail=f"completion_percentage invalido em {key}")
+        if completion_percentage < 0 or completion_percentage > 100:
+            raise HTTPException(status_code=400, detail=f"completion_percentage deve estar entre 0 e 100 em {key}")
+
+        sanitized[key] = {
+            "completion_percentage": completion_percentage,
+            "observation": _clean_optional_text(score_doc.get("observation"))
+        }
+    return sanitized
+
+def _sanitize_feedback_photos(photos: Optional[FeedbackPhotosInput]) -> Optional[Dict[str, str]]:
+    if photos is None:
+        return None
+    photo_doc = photos.model_dump()
+    sanitized: Dict[str, str] = {}
+    for key in REQUIRED_FEEDBACK_PHOTO_KEYS:
+        value = _clean_optional_text(photo_doc.get(key))
+        if value:
+            sanitized[key] = value
+    return sanitized or None
+
 def _build_feedback_items(
     answers: Dict[str, Optional[str]],
+    scores: Optional[Dict[str, Dict[str, Optional[Any]]]] = None,
     existing_items: Optional[List[Dict[str, Any]]] = None
 ) -> List[Dict[str, Any]]:
     items = []
+    scores = scores or {}
     existing_by_key = {
         str(item.get("key")): item
         for item in (existing_items or [])
@@ -1485,18 +1563,35 @@ def _build_feedback_items(
     for category in FEEDBACK_CATEGORIES:
         key = category["key"]
         existing_item = existing_by_key.get(key, {})
+        has_new_score = key in scores
         has_new_answer = key in answers
-        student_feedback = (
-            _clean_optional_text(answers.get(key))
-            if has_new_answer
-            else _clean_optional_text(existing_item.get("student_feedback"))
-        )
+        existing_completion = existing_item.get("completion_percentage")
+        try:
+            existing_completion = int(existing_completion) if existing_completion is not None else None
+        except (TypeError, ValueError):
+            existing_completion = None
+
+        if has_new_score:
+            score_payload = scores.get(key) or {}
+            completion_percentage = score_payload.get("completion_percentage")
+            student_observation = _clean_optional_text(score_payload.get("observation"))
+            student_feedback = student_observation
+        else:
+            completion_percentage = existing_completion
+            student_observation = _clean_optional_text(existing_item.get("student_observation"))
+            student_feedback = (
+                _clean_optional_text(answers.get(key))
+                if has_new_answer
+                else _clean_optional_text(existing_item.get("student_feedback"))
+            )
 
         items.append({
             "key": key,
             "label": category["label"],
             "prompt": category["prompt"],
             "student_feedback": student_feedback,
+            "completion_percentage": completion_percentage,
+            "student_observation": student_observation,
             "personal_reply": _clean_optional_text(existing_item.get("personal_reply")),
             "personal_replied_at": existing_item.get("personal_replied_at")
         })
@@ -1508,7 +1603,12 @@ def _feedback_summary(items: List[Dict[str, Any]]) -> Dict[str, int]:
     replied_items = 0
 
     for item in items:
-        has_student_feedback = bool(_clean_optional_text(item.get("student_feedback")))
+        has_completion_score = item.get("completion_percentage") is not None
+        has_student_feedback = bool(
+            has_completion_score
+            or _clean_optional_text(item.get("student_feedback"))
+            or _clean_optional_text(item.get("student_observation"))
+        )
         has_personal_reply = bool(_clean_optional_text(item.get("personal_reply")))
 
         if has_student_feedback:
@@ -1532,6 +1632,14 @@ def _feedback_status(items: List[Dict[str, Any]]) -> str:
 
 def _build_feedback_submission_response(doc: Dict[str, Any]) -> FeedbackSubmissionResponse:
     response_doc = dict(doc)
+    response_doc.setdefault("general_observations", None)
+    response_doc.setdefault("measurements", None)
+    response_doc.setdefault("photos", None)
+    response_doc["is_structured_report"] = bool(
+        response_doc.get("is_structured_report")
+        or response_doc.get("measurements")
+        or response_doc.get("photos")
+    )
     summary = _feedback_summary(response_doc.get("items") or [])
     response_doc.update(summary)
     return FeedbackSubmissionResponse(**response_doc)
@@ -1653,8 +1761,8 @@ async def upsert_feedback_plan(
 
     mode = _clean_optional_text(payload.mode or "") or "weekly"
     mode = mode.lower()
-    if mode not in ["weekly", "monthly"]:
-        raise HTTPException(status_code=400, detail="mode deve ser weekly ou monthly")
+    if mode not in ["daily", "weekly", "monthly"]:
+        raise HTTPException(status_code=400, detail="mode deve ser daily, weekly ou monthly")
 
     weekly_days = _sanitize_weekly_days(payload.weekly_days)
     monthly_days = _sanitize_monthly_days(payload.monthly_days)
@@ -1700,6 +1808,31 @@ async def upsert_feedback_plan(
 
     return FeedbackPlanResponse(**plan_doc)
 
+@api_router.post("/checkins/feedback-submissions/upload-photo")
+async def upload_feedback_submission_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Apenas alunos podem enviar fotos do relato")
+
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Apenas imagens sao aceitas")
+
+    student_id = current_user["id"]
+    now = datetime.now(timezone.utc).isoformat()
+    file_ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
+    file_name = f"feedback_report_{student_id}_{uuid.uuid4().hex[:10]}.{file_ext}"
+    file_path = UPLOAD_DIR / file_name
+
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    return {
+        "photo_url": f"/uploads/{file_name}",
+        "uploaded_at": now
+    }
+
 @api_router.post("/checkins/feedback-submissions", response_model=FeedbackSubmissionResponse)
 async def create_feedback_submission(
     payload: FeedbackSubmissionCreate,
@@ -1728,7 +1861,94 @@ async def create_feedback_submission(
     )
 
     now = datetime.now(timezone.utc).isoformat()
-    items = _build_feedback_items(payload.answers or {}, existing.get("items") if existing else None)
+    existing_items = existing.get("items") if existing else []
+    existing_items_by_key = {
+        str(item.get("key")): item
+        for item in existing_items
+        if item.get("key")
+    }
+
+    answers_payload = payload.answers or {}
+    invalid_answer_keys = sorted(set(answers_payload.keys()) - FEEDBACK_SCORE_KEYS)
+    if invalid_answer_keys:
+        raise HTTPException(status_code=400, detail=f"Categorias invalidas: {', '.join(invalid_answer_keys)}")
+
+    sanitized_scores = _sanitize_feedback_scores(payload.scores or {})
+    general_observations = _clean_optional_text(payload.general_observations)
+
+    payload_measurements = payload.measurements.model_dump() if payload.measurements else None
+    existing_measurements = existing.get("measurements") if existing else None
+    measurements_doc = payload_measurements or existing_measurements
+
+    payload_photos = _sanitize_feedback_photos(payload.photos)
+    existing_photos = existing.get("photos") if existing else None
+    merged_photos: Dict[str, str] = {}
+    for photo_key in REQUIRED_FEEDBACK_PHOTO_KEYS:
+        photo_value = None
+        if payload_photos:
+            photo_value = payload_photos.get(photo_key)
+        if not photo_value and existing_photos:
+            photo_value = _clean_optional_text(existing_photos.get(photo_key))
+        if photo_value:
+            merged_photos[photo_key] = photo_value
+
+    existing_structured = bool(
+        existing
+        and (existing.get("measurements") or existing.get("photos") or existing.get("is_structured_report"))
+    )
+    has_structured_payload = bool(
+        sanitized_scores
+        or payload_measurements
+        or payload_photos
+        or general_observations
+        or existing_structured
+    )
+
+    if has_structured_payload:
+        missing_score_keys = []
+        for score_key in FEEDBACK_SCORE_KEYS:
+            if score_key in sanitized_scores:
+                continue
+            existing_score = existing_items_by_key.get(score_key, {}).get("completion_percentage")
+            if existing_score is None:
+                missing_score_keys.append(score_key)
+        if missing_score_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Preencha o percentual de: {', '.join(sorted(missing_score_keys))}"
+            )
+
+        if not measurements_doc:
+            raise HTTPException(status_code=400, detail="As medidas sao obrigatorias neste relato")
+
+        required_measurements = ["fasting_weight", "waist_circumference", "abdominal_circumference"]
+        for measurement_key in required_measurements:
+            if measurements_doc.get(measurement_key) is None:
+                raise HTTPException(status_code=400, detail=f"Campo obrigatorio: {measurement_key}")
+
+        if _is_student_female(current_user) and measurements_doc.get("hip_circumference") is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Para alunas, a medida de quadril e obrigatoria"
+            )
+
+        missing_photo_keys = [key for key in REQUIRED_FEEDBACK_PHOTO_KEYS if key not in merged_photos]
+        if missing_photo_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Envie as fotos obrigatorias: {', '.join(missing_photo_keys)}"
+            )
+
+        items = _build_feedback_items(
+            answers_payload,
+            sanitized_scores,
+            existing_items
+        )
+    else:
+        has_legacy_content = any(_clean_optional_text(value) for value in answers_payload.values())
+        if not has_legacy_content:
+            raise HTTPException(status_code=400, detail="Preencha ao menos um item do feedback")
+        items = _build_feedback_items(answers_payload, {}, existing_items)
 
     submission_doc = {
         "id": existing["id"] if existing else str(uuid.uuid4()),
@@ -1737,6 +1957,10 @@ async def create_feedback_submission(
         "reference_date": reference_date,
         "status": _feedback_status(items),
         "items": items,
+        "general_observations": general_observations if has_structured_payload else None,
+        "measurements": measurements_doc if has_structured_payload else None,
+        "photos": merged_photos if has_structured_payload else None,
+        "is_structured_report": has_structured_payload,
         "student_submitted_at": now,
         "created_at": existing["created_at"] if existing else now,
         "updated_at": now
@@ -1785,6 +2009,55 @@ async def list_feedback_submissions(
     ).sort("reference_date", -1).to_list(limit)
 
     return [_build_feedback_submission_response(submission) for submission in submissions]
+
+@api_router.post("/checkins/feedback-reminders")
+async def send_feedback_reminders(
+    payload: FeedbackReminderRequest,
+    personal: dict = Depends(get_personal_user)
+):
+    requested_student_ids = list(dict.fromkeys(payload.student_ids or []))
+    if not requested_student_ids:
+        raise HTTPException(status_code=400, detail="Nenhum aluno foi selecionado")
+
+    students = await db.users.find(
+        {
+            "id": {"$in": requested_student_ids},
+            "personal_id": personal["id"],
+            "role": "student"
+        },
+        {"_id": 0, "id": 1, "name": 1}
+    ).to_list(len(requested_student_ids))
+
+    valid_student_ids = {student["id"] for student in students}
+    invalid_student_ids = sorted(set(requested_student_ids) - valid_student_ids)
+    if invalid_student_ids:
+        raise HTTPException(status_code=400, detail=f"Alunos invalidos: {', '.join(invalid_student_ids)}")
+
+    reminder_message = (
+        _clean_optional_text(payload.message)
+        or "Lembrete: responda seu check-in e o relatorio do periodo."
+    )
+    now = datetime.now(timezone.utc).isoformat()
+
+    notifications = []
+    for student_id in requested_student_ids:
+        notifications.append({
+            "id": str(uuid.uuid4()),
+            "user_id": student_id,
+            "title": "Lembrete de check-in",
+            "message": reminder_message,
+            "type": "info",
+            "read": False,
+            "created_at": now
+        })
+
+    if notifications:
+        await db.notifications.insert_many(notifications)
+
+    return {
+        "sent_count": len(notifications),
+        "student_ids": requested_student_ids
+    }
 
 @api_router.patch("/checkins/feedback-submissions/{submission_id}/replies", response_model=FeedbackSubmissionResponse)
 async def reply_feedback_submission(
