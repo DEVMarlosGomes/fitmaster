@@ -21,6 +21,7 @@ import EvolutionPhotosPage from "./pages/EvolutionPhotosPage";
 import StudentFinancialPage from "./pages/StudentFinancialPage";
 import PeriodizationPage from "./pages/PeriodizationPage";
 import AdminApprovalsPage from "./pages/AdminApprovalsPage";
+import ImportPage from "./pages/ImportPage";
 
 const getHomeRouteByRole = (role) => {
   if (role === "personal") return "/dashboard";
@@ -115,6 +116,11 @@ function AppRoutes() {
       <Route path="/rotinas" element={
         <ProtectedRoute allowedRoles={["personal"]}>
           <RoutinesPage />
+        </ProtectedRoute>
+      } />
+      <Route path="/importar" element={
+        <ProtectedRoute allowedRoles={["personal", "administrador"]}>
+          <ImportPage />
         </ProtectedRoute>
       } />
       <Route path="/frequencia" element={

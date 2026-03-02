@@ -35,7 +35,8 @@ import {
   Settings,
   CalendarCheck,
   Camera,
-  Activity
+  Activity,
+  FileSpreadsheet
 } from "lucide-react";
 
 // Links do Personal Trainer para Sidebar
@@ -44,6 +45,7 @@ const personalLinks = [
   { href: "/alunos", label: "Alunos", icon: Users },
   { href: "/rotinas", label: "Rotinas", icon: FolderOpen },
   { href: "/treinos", label: "Treinos", icon: Upload },
+  { href: "/importar", label: "Importar", icon: FileSpreadsheet },
   { href: "/biblioteca", label: "Exercícios", icon: BookOpen },
   { href: "/avaliacoes", label: "Avaliações", icon: ClipboardList },
   { href: "/frequencia", label: "Frequência", icon: CalendarCheck },

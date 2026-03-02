@@ -3476,6 +3476,277 @@ async def ensure_master_admin_user():
         await db.users.insert_one(admin_doc)
         logger.info("Conta administrador criada: %s", MASTER_ADMIN_EMAIL)
 
+# ==================== IMPORTAÇÃO DE PLANILHAS ====================
+
+class ImportResult(BaseModel):
+    success: bool
+    message: str
+    imported_count: int
+    errors: List[str] = []
+    data: Optional[List[Dict[str, Any]]] = None
+
+@api_router.post("/import/cadastros", response_model=ImportResult)
+async def import_cadastros_csv(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Importa planilha CSV de cadastros (formato Impacto 4.0)
+    Colunas esperadas: Nome, Telefone, Igreja, Data de Cadastro
+    """
+    if current_user["role"] not in ["personal", "administrador"]:
+        raise HTTPException(status_code=403, detail="Apenas personal trainers podem importar cadastros")
+    
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser CSV")
+    
+    try:
+        contents = await file.read()
+        # Tentar diferentes encodings
+        try:
+            df = pd.read_csv(BytesIO(contents), encoding='utf-8')
+        except Exception:
+            df = pd.read_csv(BytesIO(contents), encoding='latin-1')
+        
+        # Normalizar nomes das colunas
+        df.columns = df.columns.str.strip().str.lower()
+        
+        # Mapear colunas possíveis
+        column_mapping = {
+            'nome': ['nome', 'name', 'aluno', 'student'],
+            'telefone': ['telefone', 'phone', 'celular', 'tel'],
+            'igreja': ['igreja', 'church', 'comunidade', 'grupo'],
+            'data de cadastro': ['data de cadastro', 'data', 'date', 'cadastro', 'created_at']
+        }
+        
+        # Encontrar colunas correspondentes
+        found_columns = {}
+        for target, options in column_mapping.items():
+            for opt in options:
+                if opt in df.columns:
+                    found_columns[target] = opt
+                    break
+        
+        imported = []
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                nome = str(row.get(found_columns.get('nome', ''), '')).strip()
+                telefone = str(row.get(found_columns.get('telefone', ''), '')).strip()
+                igreja = str(row.get(found_columns.get('igreja', ''), '')).strip()
+                data_cadastro = str(row.get(found_columns.get('data de cadastro', ''), '')).strip()
+                
+                if not nome or nome.lower() == 'nan':
+                    continue
+                
+                # Criar cadastro no banco
+                cadastro = {
+                    "id": str(uuid.uuid4()),
+                    "nome": nome,
+                    "telefone": telefone if telefone.lower() != 'nan' else "",
+                    "igreja": igreja if igreja.lower() != 'nan' else "",
+                    "data_cadastro_original": data_cadastro,
+                    "personal_id": current_user["id"],
+                    "imported_at": datetime.now(timezone.utc).isoformat(),
+                    "source": "csv_import"
+                }
+                
+                await db.cadastros_importados.insert_one(cadastro)
+                imported.append({
+                    "nome": nome,
+                    "telefone": telefone,
+                    "igreja": igreja
+                })
+                
+            except Exception as e:
+                errors.append(f"Linha {idx + 2}: {str(e)}")
+        
+        return ImportResult(
+            success=True,
+            message=f"Importação concluída! {len(imported)} cadastros importados.",
+            imported_count=len(imported),
+            errors=errors,
+            data=imported[:10]  # Retorna amostra dos primeiros 10
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro na importação CSV: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro ao processar arquivo: {str(e)}")
+
+
+@api_router.post("/import/treino", response_model=ImportResult)
+async def import_treino_xlsx(
+    file: UploadFile = File(...),
+    workout_name: str = Form("Treino Importado"),
+    student_id: Optional[str] = Form(None),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Importa planilha XLSX de treino
+    Colunas esperadas: Dia, Grupo Muscular, Exercício, Séries, Repetições, Carga, Observações
+    """
+    if current_user["role"] not in ["personal", "administrador"]:
+        raise HTTPException(status_code=403, detail="Apenas personal trainers podem importar treinos")
+    
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Arquivo deve ser Excel (.xlsx ou .xls)")
+    
+    try:
+        contents = await file.read()
+        df = pd.read_excel(BytesIO(contents))
+        
+        # Normalizar nomes das colunas
+        df.columns = df.columns.str.strip().str.lower()
+        
+        # Mapear colunas possíveis
+        column_mapping = {
+            'dia': ['dia', 'day', 'weekday'],
+            'grupo muscular': ['grupo muscular', 'grupo', 'muscle group', 'muscular'],
+            'exercicio': ['exercício', 'exercicio', 'exercise', 'nome'],
+            'series': ['séries', 'series', 'sets'],
+            'repeticoes': ['repetições', 'repeticoes', 'reps', 'repetitions'],
+            'carga': ['carga', 'load', 'peso', 'weight'],
+            'observacoes': ['observações', 'observacoes', 'obs', 'notes', 'notas']
+        }
+        
+        # Encontrar colunas correspondentes
+        found_columns = {}
+        for target, options in column_mapping.items():
+            for opt in options:
+                if opt in df.columns:
+                    found_columns[target] = opt
+                    break
+        
+        # Agrupar exercícios por dia
+        days_data = {}
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                dia = str(row.get(found_columns.get('dia', ''), '')).strip()
+                grupo = str(row.get(found_columns.get('grupo muscular', ''), '')).strip()
+                exercicio = str(row.get(found_columns.get('exercicio', ''), '')).strip()
+                series = row.get(found_columns.get('series', ''), 3)
+                repeticoes = str(row.get(found_columns.get('repeticoes', ''), '10-12')).strip()
+                carga = str(row.get(found_columns.get('carga', ''), 'Moderada')).strip()
+                observacoes = str(row.get(found_columns.get('observacoes', ''), '')).strip()
+                
+                if not exercicio or exercicio.lower() == 'nan':
+                    continue
+                
+                # Normalizar dia
+                if dia.lower() == 'nan' or not dia:
+                    dia = "Dia Único"
+                
+                if dia not in days_data:
+                    days_data[dia] = []
+                
+                # Converter séries para int
+                try:
+                    series_int = int(float(series)) if str(series).lower() != 'nan' else 3
+                except (ValueError, TypeError):
+                    series_int = 3
+                
+                exercise_data = {
+                    "name": exercicio,
+                    "sets": series_int,
+                    "reps": repeticoes if repeticoes.lower() != 'nan' else "10-12",
+                    "rest": "60s",
+                    "muscle_group": grupo if grupo.lower() != 'nan' else "",
+                    "load": carga if carga.lower() != 'nan' else "Moderada",
+                    "notes": observacoes if observacoes.lower() != 'nan' else "",
+                    "image_url": get_exercise_image(exercicio)
+                }
+                
+                days_data[dia].append(exercise_data)
+                
+            except Exception as e:
+                errors.append(f"Linha {idx + 2}: {str(e)}")
+        
+        # Criar estrutura do treino
+        days = []
+        for day_name, exercises in days_data.items():
+            days.append({
+                "day_name": day_name,
+                "exercises": exercises
+            })
+        
+        # Criar o treino no banco
+        workout = {
+            "id": str(uuid.uuid4()),
+            "name": workout_name,
+            "personal_id": current_user["id"],
+            "student_id": student_id,
+            "days": days,
+            "version": 1,
+            "status": "active",
+            "imported_from": "xlsx",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        await db.workouts.insert_one(workout)
+        
+        total_exercises = sum(len(d["exercises"]) for d in days)
+        
+        return ImportResult(
+            success=True,
+            message=f"Treino importado! {len(days)} dias com {total_exercises} exercícios.",
+            imported_count=total_exercises,
+            errors=errors,
+            data=[{"workout_id": workout["id"], "days": len(days), "exercises": total_exercises}]
+        )
+        
+    except Exception as e:
+        logger.error(f"Erro na importação Excel: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Erro ao processar arquivo: {str(e)}")
+
+
+@api_router.get("/cadastros-importados")
+async def list_cadastros_importados(
+    current_user: dict = Depends(get_current_user),
+    skip: int = 0,
+    limit: int = 100
+):
+    """Lista cadastros importados do personal logado"""
+    if current_user["role"] not in ["personal", "administrador"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    query = {"personal_id": current_user["id"]}
+    if current_user["role"] == "administrador":
+        query = {}
+    
+    cadastros = await db.cadastros_importados.find(query).skip(skip).limit(limit).to_list(limit)
+    total = await db.cadastros_importados.count_documents(query)
+    
+    # Remover _id do MongoDB
+    for c in cadastros:
+        c.pop("_id", None)
+    
+    return {"cadastros": cadastros, "total": total}
+
+
+@api_router.delete("/cadastros-importados/{cadastro_id}")
+async def delete_cadastro_importado(
+    cadastro_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Remove um cadastro importado"""
+    if current_user["role"] not in ["personal", "administrador"]:
+        raise HTTPException(status_code=403, detail="Acesso negado")
+    
+    result = await db.cadastros_importados.delete_one({
+        "id": cadastro_id,
+        "personal_id": current_user["id"]
+    })
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cadastro não encontrado")
+    
+    return {"message": "Cadastro removido com sucesso"}
+
+
 # Include router and add CORS
 app.include_router(api_router)
 
