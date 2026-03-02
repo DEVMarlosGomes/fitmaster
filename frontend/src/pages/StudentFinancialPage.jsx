@@ -7,6 +7,7 @@ import { Badge } from "../components/ui/badge";
 import { DollarSign, Check, Clock, AlertTriangle, Calendar } from "lucide-react";
 import api from "../lib/api";
 import { toast } from "sonner";
+import { FAQChatPopup } from "../components/FAQChatPopup";
 
 export default function StudentFinancialPage() {
   const { user } = useAuth();
@@ -150,6 +151,9 @@ export default function StudentFinancialPage() {
           ))}
         </Tabs>
       </div>
+      
+      {/* FAQ Chat Popup */}
+      <FAQChatPopup />
     </MainLayout>
   );
 }

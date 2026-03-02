@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import api from "../lib/api";
 import { toast } from "sonner";
+import { FAQChatPopup } from "../components/FAQChatPopup";
 
 export default function ProgressPage() {
   const { user } = useAuth();
@@ -413,6 +414,9 @@ export default function ProgressPage() {
           </Card>
         )}
       </div>
+      
+      {/* FAQ Chat Popup - apenas para estudantes */}
+      {!isPersonal && <FAQChatPopup />}
     </MainLayout>
   );
 }

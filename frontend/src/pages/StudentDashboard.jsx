@@ -32,6 +32,7 @@ import api from "../lib/api";
 import { toast } from "sonner";
 import { ExerciseCard } from "../components/ExerciseCard";
 import { SetTracker } from "../components/SetTracker";
+import { FAQChatPopup } from "../components/FAQChatPopup";
 
 const FEELING_OPTIONS = [
   { value: "excelente", label: "Excelente" },
@@ -490,6 +491,9 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
       </div>
+      
+      {/* FAQ Chat Popup */}
+      <FAQChatPopup />
     </MainLayout>
   );
 }
