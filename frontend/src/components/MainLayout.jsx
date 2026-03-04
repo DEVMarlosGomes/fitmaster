@@ -95,15 +95,15 @@ export const MainLayout = ({ children }) => {
     return (
       <div className="min-h-screen bg-background flex">
         {/* Sidebar Fixa - Desktop */}
-        <aside className={`hidden lg:flex flex-col border-r border-border bg-card/50 transition-all duration-300 ${sidebarCollapsed ? 'w-[70px]' : 'w-[240px]'}`}>
+        <aside className={`hidden lg:flex flex-col border-r border-white/5 bg-card/40 backdrop-blur-xl transition-all duration-300 ${sidebarCollapsed ? 'w-[72px]' : 'w-[260px]'}`}>
           {/* Logo */}
-          <div className="h-16 flex items-center justify-between px-4 border-b border-border">
-            <Link to="/dashboard" className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <Dumbbell className="w-5 h-5 text-primary" />
+          <div className="h-16 flex items-center justify-between px-4 border-b border-white/5">
+            <Link to="/dashboard" className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                <Dumbbell className="w-5 h-5 text-primary" strokeWidth={1.5} />
               </div>
               {!sidebarCollapsed && (
-                <span className="text-lg font-black tracking-tighter uppercase gradient-text">
+                <span className="text-lg font-black tracking-tight uppercase gradient-text">
                   FitMaster
                 </span>
               )}
@@ -111,7 +111,7 @@ export const MainLayout = ({ children }) => {
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8"
+              className="h-8 w-8 text-muted-foreground hover:text-primary"
               onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             >
               {sidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -120,22 +120,22 @@ export const MainLayout = ({ children }) => {
 
           {/* Nav Links */}
           <ScrollArea className="flex-1 py-4">
-            <nav className="px-2 space-y-1">
+            <nav className="px-3 space-y-1">
               {personalLinks.map((link) => {
                 const isActive = location.pathname === link.href;
                 return (
                   <Link
                     key={link.href}
                     to={link.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
+                    className={`sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
                       isActive
-                        ? "bg-primary text-white font-semibold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/80 dark:hover:bg-secondary/50"
-                    } ${sidebarCollapsed ? 'justify-center' : ''}`}
+                        ? "bg-primary/15 text-primary font-semibold border-l-2 border-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+                    } ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
                     title={sidebarCollapsed ? link.label : ''}
                   >
-                    <link.icon className="w-5 h-5 flex-shrink-0" />
-                    {!sidebarCollapsed && <span>{link.label}</span>}
+                    <link.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? 'text-primary' : ''}`} strokeWidth={isActive ? 2 : 1.5} />
+                    {!sidebarCollapsed && <span className="text-sm">{link.label}</span>}
                   </Link>
                 );
               })}
@@ -143,22 +143,22 @@ export const MainLayout = ({ children }) => {
           </ScrollArea>
 
           {/* Bottom Section */}
-          <div className="p-4 border-t border-border space-y-2">
+          <div className="p-3 border-t border-white/5 space-y-1">
             <Link
               to="/notificacoes"
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/80 dark:hover:bg-secondary/50 transition-colors ${sidebarCollapsed ? 'justify-center' : ''}`}
+              className={`sidebar-link flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
               title={sidebarCollapsed ? 'Notificações' : ''}
             >
-              <Bell className="w-5 h-5" />
-              {!sidebarCollapsed && <span>Notificações</span>}
+              <Bell className="w-5 h-5" strokeWidth={1.5} />
+              {!sidebarCollapsed && <span className="text-sm">Notificações</span>}
             </Link>
             <button
               onClick={logout}
-              className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-red-400 hover:bg-red-500/10 transition-colors ${sidebarCollapsed ? 'justify-center' : ''}`}
+              className={`sidebar-link flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-red-400 hover:bg-red-500/10 transition-all ${sidebarCollapsed ? 'justify-center px-2' : ''}`}
               title={sidebarCollapsed ? 'Sair' : ''}
             >
-              <LogOut className="w-5 h-5" />
-              {!sidebarCollapsed && <span>Sair</span>}
+              <LogOut className="w-5 h-5" strokeWidth={1.5} />
+              {!sidebarCollapsed && <span className="text-sm">Sair</span>}
             </button>
           </div>
         </aside>
@@ -166,33 +166,33 @@ export const MainLayout = ({ children }) => {
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col min-h-screen">
           {/* Header */}
-          <header className="sticky top-0 z-50 h-16 border-b border-border bg-background/80 backdrop-blur-xl">
-            <div className="h-full px-4 lg:px-6 flex items-center justify-between">
+          <header className="sticky top-0 z-50 h-16 border-b border-white/5 bg-background/60 backdrop-blur-2xl">
+            <div className="h-full px-4 lg:px-8 flex items-center justify-between">
               {/* Mobile Menu + Logo */}
               <div className="flex items-center gap-3 lg:hidden">
                 <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                   <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon">
+                    <Button variant="ghost" size="icon" className="hover:bg-white/5">
                       <Menu className="w-5 h-5" />
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="left" className="w-[280px] bg-card border-border p-0">
+                  <SheetContent side="left" className="w-[280px] glass-strong border-white/5 p-0">
                     <ScrollArea className="h-full">
-                      <div className="p-4">
+                      <div className="p-5">
                         {/* Logo */}
-                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-border">
-                          <div className="p-2 rounded-lg bg-primary/20">
-                            <Dumbbell className="w-5 h-5 text-primary" />
+                        <div className="flex items-center gap-3 mb-6 pb-5 border-b border-white/10">
+                          <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                            <Dumbbell className="w-5 h-5 text-primary" strokeWidth={1.5} />
                           </div>
-                          <span className="text-lg font-black tracking-tighter uppercase gradient-text">
+                          <span className="text-lg font-black tracking-tight uppercase gradient-text">
                             FitMaster
                           </span>
                         </div>
 
                         {/* User Info */}
-                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
-                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                            <User className="w-5 h-5 text-primary" />
+                        <div className="flex items-center gap-3 mb-6 pb-5 border-b border-white/10">
+                          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+                            <User className="w-5 h-5 text-primary" strokeWidth={1.5} />
                           </div>
                           <div>
                             <p className="font-semibold text-sm">{user?.name}</p>
@@ -209,37 +209,37 @@ export const MainLayout = ({ children }) => {
                                 key={link.href}
                                 to={link.href}
                                 onClick={() => setMobileMenuOpen(false)}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                                   isActive
-                                    ? "bg-primary text-white font-semibold"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-secondary/80 dark:hover:bg-secondary/50"
+                                    ? "bg-primary/15 text-primary font-semibold"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                                 }`}
                               >
-                                <link.icon className="w-5 h-5" />
-                                {link.label}
+                                <link.icon className="w-5 h-5" strokeWidth={isActive ? 2 : 1.5} />
+                                <span className="text-sm">{link.label}</span>
                               </Link>
                             );
                           })}
                         </nav>
 
                         {/* Divider */}
-                        <div className="my-4 border-t border-border" />
+                        <div className="my-5 border-t border-white/10" />
 
                         {/* Bottom Links */}
                         <Link
                           to="/notificacoes"
                           onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/80 dark:hover:bg-secondary/50"
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5"
                       >
-                          <Bell className="w-5 h-5" />
-                          Notificações
+                          <Bell className="w-5 h-5" strokeWidth={1.5} />
+                          <span className="text-sm">Notificações</span>
                         </Link>
                         <button
                           onClick={() => { logout(); setMobileMenuOpen(false); }}
-                          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-red-400 hover:bg-red-500/10 mt-2"
+                          className="flex items-center gap-3 px-3 py-2.5 w-full rounded-xl text-red-400 hover:bg-red-500/10 mt-1"
                         >
-                          <LogOut className="w-5 h-5" />
-                          Sair
+                          <LogOut className="w-5 h-5" strokeWidth={1.5} />
+                          <span className="text-sm">Sair</span>
                         </button>
                       </div>
                     </ScrollArea>
@@ -247,10 +247,10 @@ export const MainLayout = ({ children }) => {
                 </Sheet>
 
                 <Link to="/dashboard" className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-primary/20">
-                    <Dumbbell className="w-4 h-4 text-primary" />
+                  <div className="p-1.5 rounded-lg bg-primary/10 border border-primary/20">
+                    <Dumbbell className="w-4 h-4 text-primary" strokeWidth={1.5} />
                   </div>
-                  <span className="text-base font-black tracking-tighter uppercase gradient-text">
+                  <span className="text-base font-black tracking-tight uppercase gradient-text">
                     FitMaster
                   </span>
                 </Link>
@@ -258,41 +258,41 @@ export const MainLayout = ({ children }) => {
 
               {/* Page Title (Desktop) */}
               <div className="hidden lg:block">
-                <h1 className="text-lg font-bold text-muted-foreground">
+                <p className="label-uppercase text-primary">
                   {personalLinks.find(l => l.href === location.pathname)?.label || ''}
-                </h1>
+                </p>
               </div>
 
               {/* Right Section */}
               <div className="flex items-center gap-2">
                 {/* Theme Toggle */}
-                <Button variant="ghost" size="icon" onClick={toggleTheme}>
-                  {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                <Button variant="ghost" size="icon" onClick={toggleTheme} className="hover:bg-white/5">
+                  {theme === "dark" ? <Sun className="w-5 h-5" strokeWidth={1.5} /> : <Moon className="w-5 h-5" strokeWidth={1.5} />}
                 </Button>
 
                 {/* User Menu */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                        <User className="w-4 h-4 text-primary" />
+                    <Button variant="ghost" className="gap-2 hover:bg-white/5">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+                        <User className="w-4 h-4 text-primary" strokeWidth={1.5} />
                       </div>
-                      <span className="hidden sm:inline text-sm">{user?.name?.split(' ')[0]}</span>
+                      <span className="hidden sm:inline text-sm font-medium">{user?.name?.split(' ')[0]}</span>
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="bg-card border-border w-56">
-                    <div className="px-3 py-2">
+                  <DropdownMenuContent align="end" className="glass-strong border-white/10 w-56">
+                    <div className="px-3 py-3">
                       <p className="font-semibold">{user?.name}</p>
                       <p className="text-xs text-muted-foreground">{user?.email}</p>
                     </div>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={toggleTheme}>
-                      {theme === "dark" ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+                      {theme === "dark" ? <Sun className="w-4 h-4 mr-2" strokeWidth={1.5} /> : <Moon className="w-4 h-4 mr-2" strokeWidth={1.5} />}
                       {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
                     </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={logout} className="text-red-400 focus:text-red-400">
-                      <LogOut className="w-4 h-4 mr-2" />
+                    <DropdownMenuSeparator className="bg-white/10" />
+                    <DropdownMenuItem onClick={logout} className="text-red-400 focus:text-red-400 cursor-pointer">
+                      <LogOut className="w-4 h-4 mr-2" strokeWidth={1.5} />
                       Sair
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -302,7 +302,7 @@ export const MainLayout = ({ children }) => {
           </header>
 
           {/* Page Content */}
-          <main className="flex-1 p-4 lg:p-6">
+          <main className="flex-1 p-6 lg:p-8">
             <div className="max-w-7xl mx-auto">
               {children}
             </div>
@@ -316,15 +316,15 @@ export const MainLayout = ({ children }) => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-xl">
+      <header className="sticky top-0 z-50 border-b border-white/5 bg-background/60 backdrop-blur-2xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link to="/treino" className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/20">
-                <Dumbbell className="w-5 h-5 text-primary" />
+            <Link to="/treino" className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/10 border border-primary/20">
+                <Dumbbell className="w-5 h-5 text-primary" strokeWidth={1.5} />
               </div>
-              <span className="text-xl font-black tracking-tighter uppercase gradient-text hidden sm:block">
+              <span className="text-xl font-black tracking-tight uppercase gradient-text hidden sm:block">
                 FitMaster
               </span>
             </Link>
@@ -337,14 +337,14 @@ export const MainLayout = ({ children }) => {
                   <Link
                     key={link.href}
                     to={link.href}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl transition-all ${
                       isActive
-                        ? "bg-primary text-white font-semibold"
-                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/80 dark:hover:bg-secondary/50"
+                        ? "bg-primary/15 text-primary font-semibold"
+                        : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                     }`}
                   >
-                    <link.icon className="w-4 h-4" />
-                    {link.label}
+                    <link.icon className="w-4 h-4" strokeWidth={isActive ? 2 : 1.5} />
+                    <span className="text-sm">{link.label}</span>
                   </Link>
                 );
               })}
@@ -353,40 +353,40 @@ export const MainLayout = ({ children }) => {
             {/* Right Section */}
             <div className="flex items-center gap-2">
               {/* Theme Toggle */}
-              <Button variant="ghost" size="icon" onClick={toggleTheme}>
-                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              <Button variant="ghost" size="icon" onClick={toggleTheme} className="hover:bg-white/5">
+                {theme === "dark" ? <Sun className="w-5 h-5" strokeWidth={1.5} /> : <Moon className="w-5 h-5" strokeWidth={1.5} />}
               </Button>
 
               {/* Notifications */}
               <Link to="/notificacoes">
-                <Button variant="ghost" size="icon" className="relative">
-                  <Bell className="w-5 h-5" />
+                <Button variant="ghost" size="icon" className="relative hover:bg-white/5">
+                  <Bell className="w-5 h-5" strokeWidth={1.5} />
                 </Button>
               </Link>
 
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="gap-2 hidden sm:flex">
-                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                      <User className="w-4 h-4 text-primary" />
+                  <Button variant="ghost" className="gap-2 hidden sm:flex hover:bg-white/5">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+                      <User className="w-4 h-4 text-primary" strokeWidth={1.5} />
                     </div>
-                    <span className="text-sm">{user?.name?.split(' ')[0]}</span>
+                    <span className="text-sm font-medium">{user?.name?.split(' ')[0]}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="bg-card border-border w-56">
-                  <div className="px-3 py-2">
+                <DropdownMenuContent align="end" className="glass-strong border-white/10 w-56">
+                  <div className="px-3 py-3">
                     <p className="font-semibold">{user?.name}</p>
                     <p className="text-xs text-muted-foreground">{user?.email}</p>
                   </div>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={toggleTheme}>
-                    {theme === "dark" ? <Sun className="w-4 h-4 mr-2" /> : <Moon className="w-4 h-4 mr-2" />}
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+                    {theme === "dark" ? <Sun className="w-4 h-4 mr-2" strokeWidth={1.5} /> : <Moon className="w-4 h-4 mr-2" strokeWidth={1.5} />}
                     {theme === "dark" ? "Modo Claro" : "Modo Escuro"}
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout} className="text-red-400 focus:text-red-400">
-                    <LogOut className="w-4 h-4 mr-2" />
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem onClick={logout} className="text-red-400 focus:text-red-400 cursor-pointer">
+                    <LogOut className="w-4 h-4 mr-2" strokeWidth={1.5} />
                     Sair
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -395,17 +395,17 @@ export const MainLayout = ({ children }) => {
               {/* Mobile Menu */}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden">
+                  <Button variant="ghost" size="icon" className="md:hidden hover:bg-white/5">
                     <Menu className="w-5 h-5" />
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="right" className="w-[280px] bg-card border-border p-0">
+                <SheetContent side="right" className="w-[280px] glass-strong border-white/5 p-0">
                   <ScrollArea className="h-full">
                     <div className="p-6">
                       {/* User Info */}
-                      <div className="flex items-center gap-3 mb-6 pb-6 border-b border-border">
-                        <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                          <User className="w-6 h-6 text-primary" />
+                      <div className="flex items-center gap-3 mb-6 pb-6 border-b border-white/10">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+                          <User className="w-6 h-6 text-primary" strokeWidth={1.5} />
                         </div>
                         <div>
                           <p className="font-semibold">{user?.name}</p>
@@ -422,14 +422,14 @@ export const MainLayout = ({ children }) => {
                               key={link.href}
                               to={link.href}
                               onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
                               isActive
-                                ? "bg-primary text-white font-semibold"
-                                : "text-muted-foreground hover:text-foreground hover:bg-secondary/80 dark:hover:bg-secondary/50"
+                                ? "bg-primary/15 text-primary font-semibold"
+                                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
                             }`}
                           >
-                              <link.icon className="w-5 h-5" />
-                              {link.label}
+                              <link.icon className="w-5 h-5" strokeWidth={isActive ? 2 : 1.5} />
+                              <span className="text-sm">{link.label}</span>
                               {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
                             </Link>
                           );
@@ -440,19 +440,19 @@ export const MainLayout = ({ children }) => {
                       <Link
                         to="/notificacoes"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 mt-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary/80 dark:hover:bg-secondary/50 transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 mt-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all"
                       >
-                        <Bell className="w-5 h-5" />
-                        Notificações
+                        <Bell className="w-5 h-5" strokeWidth={1.5} />
+                        <span className="text-sm">Notificações</span>
                       </Link>
 
                       {/* Logout */}
                       <button
                         onClick={() => { logout(); setMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3 mt-6 w-full rounded-lg text-red-400 hover:bg-red-500/10 transition-colors"
+                        className="flex items-center gap-3 px-4 py-3 mt-6 w-full rounded-xl text-red-400 hover:bg-red-500/10 transition-all"
                       >
-                        <LogOut className="w-5 h-5" />
-                        Sair
+                        <LogOut className="w-5 h-5" strokeWidth={1.5} />
+                        <span className="text-sm">Sair</span>
                       </button>
                     </div>
                   </ScrollArea>
