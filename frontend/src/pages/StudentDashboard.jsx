@@ -27,6 +27,8 @@ import {
   Gauge,
   Flame,
   Repeat2,
+  FileText,
+  Download,
 } from "lucide-react";
 import api from "../lib/api";
 import { toast } from "sonner";
@@ -231,7 +233,7 @@ export default function StudentDashboard() {
           </CardContent>
         </Card>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tighter uppercase">{workout.name}</h1>
             <p className="text-muted-foreground text-sm">
@@ -239,13 +241,26 @@ export default function StudentDashboard() {
             </p>
           </div>
 
-          <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="gap-2" data-testid="complete-workout-btn">
-                <CheckCircle2 className="w-4 h-4" />
-                Concluir treino
+          <div className="flex items-center gap-2">
+            {workout.aerobic_pdf_url && (
+              <Button
+                variant="outline"
+                className="gap-2 text-orange-400 border-orange-400/50 hover:bg-orange-400/10"
+                onClick={() => window.open(`${process.env.REACT_APP_BACKEND_URL}${workout.aerobic_pdf_url}`, '_blank')}
+                data-testid="download-aerobic-pdf"
+              >
+                <FileText className="w-4 h-4" />
+                <Download className="w-4 h-4" />
+                PDF Aeróbico
               </Button>
-            </DialogTrigger>
+            )}
+            <Dialog open={isCompleteDialogOpen} onOpenChange={setIsCompleteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2" data-testid="complete-workout-btn">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Concluir treino
+                </Button>
+              </DialogTrigger>
             <DialogContent className="bg-card border-border">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold uppercase">Como foi o treino?</DialogTitle>
@@ -345,6 +360,7 @@ export default function StudentDashboard() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         <Dialog

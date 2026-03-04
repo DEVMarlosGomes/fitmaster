@@ -211,7 +211,7 @@ export default function ImportPage() {
                   Importar Cadastros CSV
                 </CardTitle>
                 <CardDescription>
-                  Formato esperado: Nome, Telefone, Igreja, Data de Cadastro
+                  Formato esperado: Nome, Telefone, Data de Cadastro
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -240,8 +240,8 @@ export default function ImportPage() {
                 <div className="p-4 bg-secondary/30 rounded-lg">
                   <p className="text-sm font-semibold mb-2">Exemplo de formato aceito:</p>
                   <code className="text-xs text-muted-foreground">
-                    Nome,Telefone,Igreja,Data de Cadastro<br />
-                    João Silva,11999887766,Igreja Central,20/02/2026 18:05
+                    Nome,Telefone,Data de Cadastro<br />
+                    João Silva,11999887766,20/02/2026 18:05
                   </code>
                 </div>
               </CardContent>
@@ -271,7 +271,6 @@ export default function ImportPage() {
                         <TableRow>
                           <TableHead>Nome</TableHead>
                           <TableHead>Telefone</TableHead>
-                          <TableHead>Igreja</TableHead>
                           <TableHead>Importado em</TableHead>
                           <TableHead className="w-[50px]"></TableHead>
                         </TableRow>
@@ -281,7 +280,6 @@ export default function ImportPage() {
                           <TableRow key={cadastro.id}>
                             <TableCell className="font-medium">{cadastro.nome}</TableCell>
                             <TableCell>{cadastro.telefone}</TableCell>
-                            <TableCell>{cadastro.igreja}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {new Date(cadastro.imported_at).toLocaleDateString("pt-BR")}
                             </TableCell>

@@ -2579,7 +2579,317 @@ async def upload_exercise_image(
     
     return {"message": "Imagem enviada com sucesso", "image_url": image_url}
 
-@api_router.delete("/workouts/{workout_id}")
+
+# ==================== PDF AERÓBICO ENDPOINTS ====================
+
+@api_router.post("/workouts/{workout_id}/upload-pdf")
+async def upload_workout_pdf(
+    workout_id: str,
+    file: UploadFile = File(...),
+    personal: dict = Depends(get_personal_user)
+):
+    """Upload de PDF do aeróbico para um treino específico"""
+    workout = await db.workouts.find_one({"id": workout_id, "personal_id": personal["id"]})
+    if not workout:
+        raise HTTPException(status_code=404, detail="Treino não encontrado")
+    
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Apenas arquivos PDF são aceitos")
+    
+    # Salvar o PDF
+    file_name = f"aerobico_{workout_id}_{uuid.uuid4().hex[:8]}.pdf"
+    file_path = UPLOAD_DIR / file_name
+    
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    
+    pdf_url = f"/uploads/{file_name}"
+    
+    await db.workouts.update_one(
+        {"id": workout_id},
+        {"$set": {"aerobic_pdf_url": pdf_url, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"message": "PDF do aeróbico enviado com sucesso", "pdf_url": pdf_url}
+
+
+@api_router.get("/workouts/{workout_id}/pdf")
+async def get_workout_pdf(workout_id: str, current_user: dict = Depends(get_current_user)):
+    """Retorna a URL do PDF do aeróbico de um treino"""
+    query = {"id": workout_id}
+    if current_user["role"] == "personal":
+        query["personal_id"] = current_user["id"]
+    else:
+        query["student_id"] = current_user["id"]
+    
+    workout = await db.workouts.find_one(query, {"_id": 0, "aerobic_pdf_url": 1})
+    if not workout:
+        raise HTTPException(status_code=404, detail="Treino não encontrado")
+    
+    pdf_url = workout.get("aerobic_pdf_url")
+    if not pdf_url:
+        raise HTTPException(status_code=404, detail="PDF não encontrado para este treino")
+    
+    return {"pdf_url": pdf_url}
+
+
+@api_router.delete("/workouts/{workout_id}/pdf")
+async def delete_workout_pdf(workout_id: str, personal: dict = Depends(get_personal_user)):
+    """Remove o PDF do aeróbico de um treino"""
+    workout = await db.workouts.find_one({"id": workout_id, "personal_id": personal["id"]})
+    if not workout:
+        raise HTTPException(status_code=404, detail="Treino não encontrado")
+    
+    pdf_url = workout.get("aerobic_pdf_url")
+    if pdf_url:
+        # Remover arquivo físico se existir
+        file_name = pdf_url.replace("/uploads/", "")
+        file_path = UPLOAD_DIR / file_name
+        if file_path.exists():
+            file_path.unlink()
+    
+    await db.workouts.update_one(
+        {"id": workout_id},
+        {"$unset": {"aerobic_pdf_url": ""}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    
+    return {"message": "PDF removido com sucesso"}
+
+
+# ==================== UPLOAD DE VÍDEO MP4 ENDPOINTS ====================
+
+@api_router.post("/exercises/upload-video")
+async def upload_exercise_video(
+    exercise_name: str = Form(...),
+    file: UploadFile = File(...),
+    personal: dict = Depends(get_personal_user)
+):
+    """Upload de vídeo MP4 para um exercício específico"""
+    if not file.filename.lower().endswith('.mp4'):
+        raise HTTPException(status_code=400, detail="Apenas arquivos MP4 são aceitos")
+    
+    # Nome seguro para o arquivo
+    safe_name = exercise_name.lower().replace(" ", "_").replace("/", "_")
+    file_name = f"video_{safe_name}_{uuid.uuid4().hex[:8]}.mp4"
+    file_path = UPLOAD_DIR / file_name
+    
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    
+    video_url = f"/uploads/{file_name}"
+    
+    # Salvar no banco de dados de vídeos de exercícios
+    video_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Verificar se já existe vídeo para este exercício
+    existing = await db.exercise_videos.find_one({
+        "exercise_name_lower": exercise_name.lower(),
+        "personal_id": personal["id"]
+    })
+    
+    if existing:
+        # Remover arquivo antigo
+        old_url = existing.get("video_url", "")
+        if old_url:
+            old_file = old_url.replace("/uploads/", "")
+            old_path = UPLOAD_DIR / old_file
+            if old_path.exists():
+                old_path.unlink()
+        
+        await db.exercise_videos.update_one(
+            {"id": existing["id"]},
+            {"$set": {"video_url": video_url, "updated_at": now}}
+        )
+    else:
+        await db.exercise_videos.insert_one({
+            "id": video_id,
+            "exercise_name": exercise_name,
+            "exercise_name_lower": exercise_name.lower(),
+            "video_url": video_url,
+            "personal_id": personal["id"],
+            "created_at": now,
+            "updated_at": now
+        })
+    
+    return {"message": "Vídeo enviado com sucesso", "video_url": video_url}
+
+
+@api_router.get("/exercises/video-mp4/{exercise_name}")
+async def get_exercise_video_mp4(exercise_name: str, current_user: dict = Depends(get_current_user)):
+    """Retorna a URL do vídeo MP4 de um exercício"""
+    personal_id = current_user["id"] if current_user["role"] == "personal" else current_user.get("personal_id")
+    
+    # Buscar vídeo do personal
+    video = await db.exercise_videos.find_one({
+        "exercise_name_lower": exercise_name.lower(),
+        "personal_id": personal_id
+    }, {"_id": 0})
+    
+    if video:
+        return {"video_url": video.get("video_url"), "type": "mp4"}
+    
+    # Se não encontrar, retornar None
+    return {"video_url": None, "type": None}
+
+
+@api_router.get("/exercises/videos")
+async def list_exercise_videos(personal: dict = Depends(get_personal_user)):
+    """Lista todos os vídeos de exercícios do personal"""
+    videos = await db.exercise_videos.find(
+        {"personal_id": personal["id"]},
+        {"_id": 0}
+    ).to_list(500)
+    
+    return {"videos": videos}
+
+
+@api_router.delete("/exercises/video/{video_id}")
+async def delete_exercise_video(video_id: str, personal: dict = Depends(get_personal_user)):
+    """Remove um vídeo de exercício"""
+    video = await db.exercise_videos.find_one({"id": video_id, "personal_id": personal["id"]})
+    if not video:
+        raise HTTPException(status_code=404, detail="Vídeo não encontrado")
+    
+    # Remover arquivo físico
+    video_url = video.get("video_url", "")
+    if video_url:
+        file_name = video_url.replace("/uploads/", "")
+        file_path = UPLOAD_DIR / file_name
+        if file_path.exists():
+            file_path.unlink()
+    
+    await db.exercise_videos.delete_one({"id": video_id})
+    
+    return {"message": "Vídeo removido com sucesso"}
+
+
+# ==================== CÁLCULO DE GASTO CALÓRICO ====================
+
+def calculate_caloric_expenditure(weight_kg: float, reps: int, load_kg: float = 0) -> dict:
+    """
+    Calcula o gasto calórico estimado baseado em:
+    - Volume = carga x repetições
+    - Fórmula simplificada: Kcal = (Volume / 1000) * 5 + (reps * 0.5)
+    - Com ajuste pelo peso corporal se disponível
+    """
+    if not reps or reps <= 0:
+        return {"calories": 0, "volume": 0}
+    
+    volume = (load_kg or 0) * reps
+    
+    # Cálculo base de calorias
+    # Aproximação: cada 1000kg de volume = ~5 kcal
+    # Cada repetição = ~0.5 kcal de gasto base
+    base_calories = (volume / 1000) * 5 + (reps * 0.5)
+    
+    # Ajuste pelo peso corporal (pessoas mais pesadas gastam mais energia)
+    if weight_kg and weight_kg > 0:
+        body_factor = weight_kg / 70  # Referência: 70kg
+        base_calories *= body_factor
+    
+    return {
+        "calories": round(base_calories, 1),
+        "volume": round(volume, 1)
+    }
+
+
+@api_router.post("/calculate-calories")
+async def calculate_exercise_calories(
+    load_kg: float = Form(...),
+    reps: int = Form(...),
+    sets: int = Form(1),
+    student_weight_kg: Optional[float] = Form(None),
+    current_user: dict = Depends(get_current_user)
+):
+    """Calcula o gasto calórico estimado para um exercício"""
+    if reps <= 0:
+        return {"calories_per_set": 0, "total_calories": 0, "total_volume": 0}
+    
+    # Se peso do aluno não foi fornecido, tentar buscar do perfil
+    weight = student_weight_kg
+    if not weight:
+        # Buscar última avaliação física para pegar o peso
+        assessment = await db.assessments.find_one(
+            {"student_id": current_user["id"]},
+            {"_id": 0, "weight": 1},
+            sort=[("date", -1)]
+        )
+        if assessment and assessment.get("weight"):
+            weight = assessment["weight"]
+        else:
+            weight = 70  # Peso padrão
+    
+    result = calculate_caloric_expenditure(weight, reps, load_kg)
+    
+    return {
+        "calories_per_set": result["calories"],
+        "total_calories": round(result["calories"] * sets, 1),
+        "total_volume": round(result["volume"] * sets, 1),
+        "weight_used": weight
+    }
+
+
+# ==================== DEVOLUTIVA/FEEDBACK SOLICITAÇÃO ====================
+
+@api_router.post("/checkins/request-feedback/{student_id}")
+async def request_student_feedback(
+    student_id: str,
+    message: Optional[str] = None,
+    personal: dict = Depends(get_personal_user)
+):
+    """Personal solicita feedback/devolutiva do aluno"""
+    student = await db.users.find_one({"id": student_id, "personal_id": personal["id"]})
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno não encontrado")
+    
+    request_id = str(uuid.uuid4())
+    now = datetime.now(timezone.utc).isoformat()
+    
+    # Criar solicitação de feedback
+    request_doc = {
+        "id": request_id,
+        "student_id": student_id,
+        "personal_id": personal["id"],
+        "message": message or "Seu personal solicitou uma devolutiva sobre seus treinos.",
+        "status": "pending",
+        "created_at": now,
+        "responded_at": None
+    }
+    
+    await db.feedback_requests.insert_one(request_doc)
+    
+    # Criar notificação para o aluno
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": student_id,
+        "title": "Devolutiva Solicitada",
+        "message": message or "Seu personal solicitou uma devolutiva sobre seus treinos. Por favor, responda na aba de Check-in.",
+        "type": "feedback_request",
+        "read": False,
+        "created_at": now,
+        "metadata": {"request_id": request_id}
+    })
+    
+    return {"message": "Solicitação de feedback enviada", "request_id": request_id}
+
+
+@api_router.get("/checkins/pending-feedback-request")
+async def get_pending_feedback_request(current_user: dict = Depends(get_current_user)):
+    """Verifica se há solicitação de feedback pendente para o aluno"""
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Apenas alunos podem verificar solicitações de feedback")
+    
+    request = await db.feedback_requests.find_one(
+        {"student_id": current_user["id"], "status": "pending"},
+        {"_id": 0},
+        sort=[("created_at", -1)]
+    )
+    
+    if request:
+        return {"has_pending": True, "request": request}
+    
+    return {"has_pending": False, "request": None}
 async def delete_workout(workout_id: str, personal: dict = Depends(get_personal_user)):
     result = await db.workouts.delete_one({"id": workout_id, "personal_id": personal["id"]})
     if result.deleted_count == 0:
@@ -3515,7 +3825,6 @@ async def import_cadastros_csv(
         column_mapping = {
             'nome': ['nome', 'name', 'aluno', 'student'],
             'telefone': ['telefone', 'phone', 'celular', 'tel'],
-            'igreja': ['igreja', 'church', 'comunidade', 'grupo'],
             'data de cadastro': ['data de cadastro', 'data', 'date', 'cadastro', 'created_at']
         }
         
@@ -3534,7 +3843,6 @@ async def import_cadastros_csv(
             try:
                 nome = str(row.get(found_columns.get('nome', ''), '')).strip()
                 telefone = str(row.get(found_columns.get('telefone', ''), '')).strip()
-                igreja = str(row.get(found_columns.get('igreja', ''), '')).strip()
                 data_cadastro = str(row.get(found_columns.get('data de cadastro', ''), '')).strip()
                 
                 if not nome or nome.lower() == 'nan':
@@ -3545,7 +3853,6 @@ async def import_cadastros_csv(
                     "id": str(uuid.uuid4()),
                     "nome": nome,
                     "telefone": telefone if telefone.lower() != 'nan' else "",
-                    "igreja": igreja if igreja.lower() != 'nan' else "",
                     "data_cadastro_original": data_cadastro,
                     "personal_id": current_user["id"],
                     "imported_at": datetime.now(timezone.utc).isoformat(),
@@ -3555,8 +3862,7 @@ async def import_cadastros_csv(
                 await db.cadastros_importados.insert_one(cadastro)
                 imported.append({
                     "nome": nome,
-                    "telefone": telefone,
-                    "igreja": igreja
+                    "telefone": telefone
                 })
                 
             except Exception as e:

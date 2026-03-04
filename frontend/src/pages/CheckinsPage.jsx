@@ -247,6 +247,8 @@ export default function CheckinsPage() {
   const [overviewRows, setOverviewRows] = useState([]);
   const [loadingOverview, setLoadingOverview] = useState(false);
   const [sendingReminders, setSendingReminders] = useState(false);
+  const [pendingFeedbackRequest, setPendingFeedbackRequest] = useState(null);
+  const [requestingFeedback, setRequestingFeedback] = useState(false);
   const todayISO = useMemo(() => toLocalDateISO(), []);
 
   useEffect(() => {
@@ -265,7 +267,36 @@ export default function CheckinsPage() {
       loadFeedbackPlan(selectedStudent);
       loadFeedbackSubmissions(selectedStudent);
     }
+    if (!isPersonal && user?.id) {
+      loadPendingFeedbackRequest();
+    }
   }, [selectedStudent]);
+
+  const loadPendingFeedbackRequest = async () => {
+    try {
+      const response = await api.get("/checkins/pending-feedback-request");
+      if (response.data?.has_pending) {
+        setPendingFeedbackRequest(response.data.request);
+      } else {
+        setPendingFeedbackRequest(null);
+      }
+    } catch (error) {
+      console.log("Error loading pending feedback request");
+    }
+  };
+
+  const handleRequestFeedback = async () => {
+    if (!selectedStudent) return;
+    setRequestingFeedback(true);
+    try {
+      await api.post(`/checkins/request-feedback/${selectedStudent}`);
+      toast.success("Solicitação de devolutiva enviada ao aluno!");
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erro ao solicitar devolutiva");
+    } finally {
+      setRequestingFeedback(false);
+    }
+  };
 
   const latestFeedbackSubmission = feedbackSubmissions[0] || null;
   const activeFeedbackSubmission =
@@ -1060,6 +1091,46 @@ export default function CheckinsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Botão para personal solicitar devolutiva */}
+            {isPersonal && selectedStudent && (
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={handleRequestFeedback}
+                  disabled={requestingFeedback}
+                  className="gap-2 border-amber-400/50 text-amber-400 hover:bg-amber-400/10"
+                  data-testid="request-feedback-btn"
+                >
+                  {requestingFeedback ? (
+                    "Enviando..."
+                  ) : (
+                    <>
+                      <BellRing className="w-4 h-4" />
+                      Solicitar Devolutiva
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Alerta para aluno com solicitação pendente */}
+            {!isPersonal && pendingFeedbackRequest && (
+              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30 animate-pulse-slow" data-testid="pending-feedback-alert">
+                <div className="flex items-start gap-3">
+                  <BellRing className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-amber-400">Devolutiva Solicitada!</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {pendingFeedbackRequest.message || "Seu personal solicitou uma devolutiva sobre seus treinos."}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Solicitado em: {new Date(pendingFeedbackRequest.created_at).toLocaleString("pt-BR")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-lg bg-secondary/30 p-3 text-sm">
               <p className="font-semibold">Planejamento atual</p>
               <p className="text-muted-foreground mt-1">{feedbackPlanSummary}</p>
@@ -1283,7 +1354,7 @@ export default function CheckinsPage() {
 
                 <Button
                   onClick={handleSubmitStudentFeedback}
-                  disabled={submittingStudentFeedback || !feedbackPlan || !isTodayFeedbackDay}
+                  disabled={submittingStudentFeedback || !feedbackPlan || (!isTodayFeedbackDay && !pendingFeedbackRequest)}
                   className="gap-2"
                 >
                   {submittingStudentFeedback

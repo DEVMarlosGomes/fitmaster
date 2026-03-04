@@ -34,7 +34,10 @@ import {
   Eye,
   Image as ImageIcon,
   Camera,
-  Send
+  Send,
+  FileText,
+  Video,
+  Download
 } from "lucide-react";
 import api from "../lib/api";
 import { toast } from "sonner";
@@ -43,6 +46,8 @@ import { ExerciseImageUpload } from "../components/ExerciseImageUpload";
 export default function WorkoutsPage() {
   const [searchParams] = useSearchParams();
   const fileInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
+  const videoInputRef = useRef(null);
   const [students, setStudents] = useState([]);
   const [workouts, setWorkouts] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState(searchParams.get("student") || "none");
@@ -54,6 +59,10 @@ export default function WorkoutsPage() {
   const [assignDialog, setAssignDialog] = useState(null);
   const [assignStudent, setAssignStudent] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [pdfUploadWorkoutId, setPdfUploadWorkoutId] = useState(null);
+  const [uploadingPdf, setUploadingPdf] = useState(false);
+  const [videoUploadDialog, setVideoUploadDialog] = useState(null);
+  const [uploadingVideo, setUploadingVideo] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -166,6 +175,77 @@ export default function WorkoutsPage() {
   const getStudentName = (studentId) => {
     const student = students.find(s => s.id === studentId);
     return student?.name || "Sem aluno";
+  };
+
+  const handlePdfUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !pdfUploadWorkoutId) return;
+
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      toast.error("Apenas arquivos PDF são aceitos");
+      return;
+    }
+
+    setUploadingPdf(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      await api.post(`/workouts/${pdfUploadWorkoutId}/upload-pdf`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      toast.success("PDF do aeróbico enviado com sucesso!");
+      loadWorkouts(selectedStudent !== "none" ? selectedStudent : null);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erro ao enviar PDF");
+    } finally {
+      setUploadingPdf(false);
+      setPdfUploadWorkoutId(null);
+      if (pdfInputRef.current) {
+        pdfInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleVideoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !videoUploadDialog) return;
+
+    if (!file.name.toLowerCase().endsWith('.mp4')) {
+      toast.error("Apenas arquivos MP4 são aceitos");
+      return;
+    }
+
+    setUploadingVideo(true);
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("exercise_name", videoUploadDialog.exerciseName);
+
+    try {
+      const response = await api.post("/exercises/upload-video", formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      toast.success("Vídeo enviado com sucesso!");
+      loadWorkouts(selectedStudent !== "none" ? selectedStudent : null);
+      setVideoUploadDialog(null);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Erro ao enviar vídeo");
+    } finally {
+      setUploadingVideo(false);
+      if (videoInputRef.current) {
+        videoInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleDeletePdf = async (workoutId) => {
+    try {
+      await api.delete(`/workouts/${workoutId}/pdf`);
+      toast.success("PDF removido com sucesso");
+      loadWorkouts(selectedStudent !== "none" ? selectedStudent : null);
+    } catch (error) {
+      toast.error("Erro ao remover PDF");
+    }
   };
 
   return (
@@ -316,7 +396,7 @@ export default function WorkoutsPage() {
                           </p>
                         </div>
                       </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -335,6 +415,32 @@ export default function WorkoutsPage() {
                         <Send className="w-4 h-4 mr-1" />
                         Enviar
                       </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setPdfUploadWorkoutId(workout.id);
+                          pdfInputRef.current?.click();
+                        }}
+                        disabled={uploadingPdf}
+                        data-testid={`upload-pdf-${workout.id}`}
+                        className="text-orange-400 border-orange-400/50 hover:bg-orange-400/10"
+                      >
+                        <FileText className="w-4 h-4 mr-1" />
+                        {workout.aerobic_pdf_url ? "Trocar PDF" : "PDF Aeróbico"}
+                      </Button>
+                      {workout.aerobic_pdf_url && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => window.open(`${process.env.REACT_APP_BACKEND_URL}${workout.aerobic_pdf_url}`, '_blank')}
+                          className="text-green-400 hover:bg-green-400/10"
+                          data-testid={`view-pdf-${workout.id}`}
+                        >
+                          <Download className="w-4 h-4 mr-1" />
+                          Ver PDF
+                        </Button>
+                      )}
                       <Button 
                         variant="ghost" 
                         size="sm"
@@ -404,13 +510,30 @@ export default function WorkoutsPage() {
                                         </p>
                                       </div>
                                     </div>
-                                    <div className="text-right text-sm">
-                                      <p className="font-semibold">
-                                        {exercise.sets}x {exercise.reps}
-                                      </p>
-                                      {exercise.weight && (
-                                        <p className="text-muted-foreground">{exercise.weight}</p>
-                                      )}
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setVideoUploadDialog({
+                                            exerciseName: exercise.name,
+                                            workoutId: workout.id
+                                          });
+                                          videoInputRef.current?.click();
+                                        }}
+                                        className="text-purple-400 hover:bg-purple-400/10"
+                                        data-testid={`upload-video-${dayIdx}-${idx}`}
+                                      >
+                                        <Video className="w-4 h-4" />
+                                      </Button>
+                                      <div className="text-right text-sm">
+                                        <p className="font-semibold">
+                                          {exercise.sets}x {exercise.reps}
+                                        </p>
+                                        {exercise.weight && (
+                                          <p className="text-muted-foreground">{exercise.weight}</p>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
                                 ))}
@@ -483,6 +606,24 @@ export default function WorkoutsPage() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Hidden inputs for file uploads */}
+        <input
+          ref={pdfInputRef}
+          type="file"
+          accept=".pdf"
+          onChange={handlePdfUpload}
+          className="hidden"
+          data-testid="pdf-upload-input"
+        />
+        <input
+          ref={videoInputRef}
+          type="file"
+          accept=".mp4"
+          onChange={handleVideoUpload}
+          className="hidden"
+          data-testid="video-upload-input"
+        />
       </div>
     </MainLayout>
   );

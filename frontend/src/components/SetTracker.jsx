@@ -15,6 +15,7 @@ import {
   Bell,
   BellOff,
   Settings,
+  Flame,
 } from "lucide-react";
 import api from "../lib/api";
 import { toast } from "sonner";
@@ -25,6 +26,8 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
   const [previousData, setPreviousData] = useState(null);
   const [resolvedVideoUrl, setResolvedVideoUrl] = useState("");
   const [loadingVideo, setLoadingVideo] = useState(false);
+  const [mp4VideoUrl, setMp4VideoUrl] = useState(null);
+  const [caloriesEstimate, setCaloriesEstimate] = useState(null);
 
   const [timerActive, setTimerActive] = useState(false);
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -51,11 +54,61 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
 
     loadPreviousProgress();
     resolveVideoUrl();
+    checkMp4Video();
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [exercise]);
+
+  const checkMp4Video = async () => {
+    try {
+      const response = await api.get(`/exercises/video-mp4/${encodeURIComponent(exercise.name)}`);
+      if (response.data?.video_url) {
+        setMp4VideoUrl(response.data.video_url);
+      }
+    } catch (error) {
+      console.log("No MP4 video found");
+    }
+  };
+
+  // Calcular calorias quando peso ou reps mudam
+  const calculateCalories = useCallback(async () => {
+    const completedSets = sets.filter(s => s.weight && s.reps);
+    if (completedSets.length === 0) {
+      setCaloriesEstimate(null);
+      return;
+    }
+
+    const totalWeight = completedSets.reduce((sum, s) => sum + (parseFloat(s.weight) || 0), 0);
+    const totalReps = completedSets.reduce((sum, s) => sum + (parseInt(s.reps) || 0), 0);
+    const avgWeight = totalWeight / completedSets.length;
+
+    try {
+      const formData = new FormData();
+      formData.append("load_kg", avgWeight);
+      formData.append("reps", totalReps);
+      formData.append("sets", completedSets.length);
+      
+      const response = await api.post("/calculate-calories", formData);
+      setCaloriesEstimate(response.data);
+    } catch (error) {
+      // Fallback: cálculo local simples
+      const volume = totalWeight * totalReps;
+      const calories = (volume / 1000) * 5 + (totalReps * 0.5);
+      setCaloriesEstimate({
+        total_calories: Math.round(calories * 10) / 10,
+        total_volume: Math.round(volume)
+      });
+    }
+  }, [sets]);
+
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      calculateCalories();
+    }, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [sets, calculateCalories]);
 
   useEffect(() => {
     if (timerActive && timerSeconds > 0) {
@@ -372,8 +425,17 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
               </div>
 
               <div className="mt-4 rounded-2xl overflow-hidden border border-blue-500/20 bg-black/30">
-                <div className={`relative ${embedUrl ? "aspect-video" : "h-52 sm:h-72"}`}>
-                  {embedUrl ? (
+                <div className={`relative ${mp4VideoUrl || embedUrl ? "aspect-video" : "h-52 sm:h-72"}`}>
+                  {mp4VideoUrl ? (
+                    <video
+                      controls
+                      className="w-full h-full"
+                      src={`${process.env.REACT_APP_BACKEND_URL}${mp4VideoUrl}`}
+                      data-testid="exercise-video-mp4"
+                    >
+                      Seu navegador não suporta o elemento de vídeo.
+                    </video>
+                  ) : embedUrl ? (
                     <iframe
                       title={`video-${exercise.name}`}
                       src={embedUrl}
@@ -385,7 +447,7 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                     <img src={exercise.image_url || defaultImage} alt={exercise.name} className="w-full h-full object-cover" />
                   )}
 
-                  {!embedUrl && videoUrl && (
+                  {!mp4VideoUrl && !embedUrl && videoUrl && (
                     <a
                       href={videoUrl}
                       target="_blank"
@@ -477,6 +539,26 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                   })}
                 </div>
               </div>
+
+              {/* Caloric Expenditure Display */}
+              {caloriesEstimate && caloriesEstimate.total_calories > 0 && (
+                <div className="mt-4 p-4 rounded-2xl border border-orange-500/30 bg-orange-500/10" data-testid="calories-display">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Flame className="w-5 h-5 text-orange-400" />
+                      <span className="text-sm text-zinc-300">Gasto Calórico Estimado</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-orange-400">
+                        {caloriesEstimate.total_calories} <span className="text-sm font-normal">kcal</span>
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        Volume: {caloriesEstimate.total_volume} kg
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="mt-5 text-center text-[11px] tracking-[0.32em] text-blue-300/70">FITMASTER</div>
             </div>
