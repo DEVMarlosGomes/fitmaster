@@ -335,6 +335,16 @@ class ExerciseLibraryCreate(BaseModel):
     instructions: Optional[str] = None
     muscles_worked: Optional[List[str]] = None
 
+class ExerciseLibraryUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    description: Optional[str] = None
+    image_url: Optional[str] = None
+    video_url: Optional[str] = None
+    instructions: Optional[str] = None
+    muscles_worked: Optional[List[str]] = None
+    mp4_video_url: Optional[str] = None
+
 class ExerciseLibraryResponse(BaseModel):
     id: str
     name: str
@@ -344,7 +354,9 @@ class ExerciseLibraryResponse(BaseModel):
     video_url: Optional[str] = None
     instructions: Optional[str] = None
     muscles_worked: Optional[List[str]] = None
+    mp4_video_url: Optional[str] = None
     personal_id: Optional[str] = None  # None = system exercise
+    is_system: Optional[bool] = False
     created_at: str
 
 # ==================== FINANCIAL MODELS ====================
@@ -1282,6 +1294,97 @@ async def delete_library_exercise(exercise_id: str, personal: dict = Depends(get
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Exercício não encontrado ou é um exercício do sistema")
     return {"message": "Exercício removido com sucesso"}
+
+@api_router.put("/exercise-library/{exercise_id}", response_model=ExerciseLibraryResponse)
+async def update_library_exercise(exercise_id: str, update: ExerciseLibraryUpdate, personal: dict = Depends(get_personal_user)):
+    exercise = await db.exercise_library.find_one({"id": exercise_id}, {"_id": 0})
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercício não encontrado")
+    
+    # Allow personal to edit system exercises (for their own use) or their own exercises
+    update_data = {k: v for k, v in update.model_dump().items() if v is not None}
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Nenhum dado para atualizar")
+    
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    # If it's a system exercise, clone it for this personal first
+    if exercise.get("is_system") and not exercise.get("personal_id"):
+        # Update in-place for system exercises (shared)
+        await db.exercise_library.update_one(
+            {"id": exercise_id},
+            {"$set": update_data}
+        )
+    else:
+        await db.exercise_library.update_one(
+            {"id": exercise_id},
+            {"$set": update_data}
+        )
+    
+    updated = await db.exercise_library.find_one({"id": exercise_id}, {"_id": 0})
+    return ExerciseLibraryResponse(**updated)
+
+@api_router.post("/exercise-library/{exercise_id}/upload-video")
+async def upload_exercise_library_video(
+    exercise_id: str,
+    file: UploadFile = File(...),
+    personal: dict = Depends(get_personal_user)
+):
+    """Upload de vídeo MP4 para um exercício da biblioteca"""
+    exercise = await db.exercise_library.find_one({"id": exercise_id}, {"_id": 0})
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercício não encontrado")
+    
+    if not file.filename.lower().endswith(('.mp4', '.webm', '.mov')):
+        raise HTTPException(status_code=400, detail="Apenas arquivos MP4, WebM ou MOV são aceitos")
+    
+    safe_name = exercise["name"].lower().replace(" ", "_").replace("/", "_")[:30]
+    file_ext = file.filename.split(".")[-1].lower()
+    file_name = f"video_{safe_name}_{uuid.uuid4().hex[:8]}.{file_ext}"
+    file_path = UPLOAD_DIR / file_name
+    
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    
+    video_url = f"/uploads/{file_name}"
+    
+    # Remove old uploaded video if exists
+    old_mp4 = exercise.get("mp4_video_url", "")
+    if old_mp4 and old_mp4.startswith("/uploads/"):
+        old_file = old_mp4.replace("/uploads/", "")
+        old_path = UPLOAD_DIR / old_file
+        if old_path.exists():
+            old_path.unlink()
+    
+    now = datetime.now(timezone.utc).isoformat()
+    await db.exercise_library.update_one(
+        {"id": exercise_id},
+        {"$set": {"mp4_video_url": video_url, "updated_at": now}}
+    )
+    
+    return {"message": "Vídeo enviado com sucesso", "mp4_video_url": video_url}
+
+@api_router.delete("/exercise-library/{exercise_id}/video")
+async def delete_exercise_library_video(exercise_id: str, personal: dict = Depends(get_personal_user)):
+    """Remove o vídeo MP4 de um exercício da biblioteca"""
+    exercise = await db.exercise_library.find_one({"id": exercise_id}, {"_id": 0})
+    if not exercise:
+        raise HTTPException(status_code=404, detail="Exercício não encontrado")
+    
+    mp4_url = exercise.get("mp4_video_url", "")
+    if mp4_url and mp4_url.startswith("/uploads/"):
+        file_name = mp4_url.replace("/uploads/", "")
+        file_path = UPLOAD_DIR / file_name
+        if file_path.exists():
+            file_path.unlink()
+    
+    now = datetime.now(timezone.utc).isoformat()
+    await db.exercise_library.update_one(
+        {"id": exercise_id},
+        {"$set": {"mp4_video_url": None, "updated_at": now}}
+    )
+    
+    return {"message": "Vídeo removido com sucesso"}
 
 # ==================== FINANCIAL ====================
 
@@ -4055,6 +4158,67 @@ async def delete_cadastro_importado(
     return {"message": "Cadastro removido com sucesso"}
 
 
+async def seed_system_exercises():
+    """Seed all system exercises into exercise_library if not already present"""
+    # Collect all unique exercise names from EXERCISE_IMAGES and EXERCISE_VIDEOS
+    all_exercises = {}
+    
+    # Map exercise names to their categories
+    EXERCISE_CATEGORY_MAP = {
+        "supino reto": "PEITORAL", "supino inclinado": "PEITORAL", "supino declinado": "PEITORAL",
+        "supino inclinado com halter": "PEITORAL",
+        "crucifixo": "PEITORAL", "crossover": "PEITORAL", "flexão": "PEITORAL",
+        "puxada": "DORSAL", "puxada frontal": "DORSAL", "remada": "DORSAL",
+        "remada curvada": "DORSAL", "remada baixa": "DORSAL", "pulldown": "DORSAL",
+        "desenvolvimento": "OMBRO", "elevação lateral": "OMBRO", "elevação frontal": "OMBRO",
+        "rosca": "BÍCEPS", "rosca direta": "BÍCEPS", "rosca alternada": "BÍCEPS",
+        "rosca martelo": "BÍCEPS", "rosca scott": "BÍCEPS",
+        "tríceps": "TRÍCEPS", "tríceps pulley": "TRÍCEPS", "tríceps corda": "TRÍCEPS",
+        "tríceps testa": "TRÍCEPS", "tríceps francês": "TRÍCEPS",
+        "agachamento": "INFERIORES", "leg press": "INFERIORES",
+        "extensora": "INFERIORES", "flexora": "INFERIORES",
+        "cadeira extensora": "INFERIORES", "cadeira flexora": "INFERIORES",
+        "stiff": "INFERIORES", "levantamento terra": "INFERIORES",
+        "panturrilha": "INFERIORES", "gêmeos": "INFERIORES",
+        "abdominal": "ABDÔMEN", "abdominal canivete": "ABDÔMEN",
+        "abdominal com corda na polia": "ABDÔMEN",
+        "prancha": "ABDÔMEN", "crunch": "ABDÔMEN",
+    }
+    
+    for name in set(list(EXERCISE_IMAGES.keys()) + list(EXERCISE_VIDEOS.keys())):
+        name_title = name.title()
+        all_exercises[name] = {
+            "name": name_title,
+            "category": EXERCISE_CATEGORY_MAP.get(name, "FUNCIONAL"),
+            "image_url": EXERCISE_IMAGES.get(name),
+            "video_url": EXERCISE_VIDEOS.get(name),
+        }
+    
+    now = datetime.now(timezone.utc).isoformat()
+    inserted = 0
+    for name_lower, data in all_exercises.items():
+        existing = await db.exercise_library.find_one({"name": {"$regex": f"^{re.escape(data['name'])}$", "$options": "i"}})
+        if not existing:
+            exercise_doc = {
+                "id": str(uuid.uuid4()),
+                "name": data["name"],
+                "category": data["category"],
+                "description": None,
+                "image_url": data["image_url"],
+                "video_url": data["video_url"],
+                "mp4_video_url": None,
+                "instructions": None,
+                "muscles_worked": None,
+                "personal_id": None,
+                "is_system": True,
+                "created_at": now,
+            }
+            await db.exercise_library.insert_one(exercise_doc)
+            inserted += 1
+    
+    if inserted > 0:
+        print(f"[SEED] {inserted} exercícios do sistema inseridos na biblioteca")
+
 # Include router and add CORS
 app.include_router(api_router)
 
@@ -4069,6 +4233,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_initialize():
     await ensure_master_admin_user()
+    await seed_system_exercises()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

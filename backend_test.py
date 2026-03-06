@@ -1,348 +1,271 @@
 #!/usr/bin/env python3
 
 import requests
-import sys
-from datetime import datetime
 import json
+import sys
+from pathlib import Path
+import tempfile
+from datetime import datetime
 
-class FitMasterAPITester:
+class ExerciseLibraryTester:
     def __init__(self, base_url="https://workout-removal-fix.preview.emergentagent.com"):
         self.base_url = base_url
         self.token = None
         self.tests_run = 0
         self.tests_passed = 0
-        self.results = []
-
-    def log_result(self, test_name, passed, details=""):
-        """Log test result"""
-        self.tests_run += 1
-        if passed:
-            self.tests_passed += 1
+        self.failed_tests = []
         
-        result = {
-            "test": test_name,
-            "passed": passed,
-            "details": details,
-            "timestamp": datetime.now().isoformat()
-        }
-        self.results.append(result)
-        
-        status = "✅ PASSED" if passed else "❌ FAILED"
-        print(f"{status} - {test_name}")
-        if details:
-            print(f"   Details: {details}")
-
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, files=None):
         """Run a single API test"""
         url = f"{self.base_url}/api/{endpoint}"
-        test_headers = {'Content-Type': 'application/json'}
+        headers = {'Content-Type': 'application/json'}
+        if self.token:
+            headers['Authorization'] = f'Bearer {self.token}'
         
-        if self.token and not headers:
-            test_headers['Authorization'] = f'Bearer {self.token}'
-        
-        if headers:
-            test_headers.update(headers)
+        # Remove Content-Type for file uploads
+        if files:
+            headers.pop('Content-Type', None)
 
+        self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
         print(f"   URL: {url}")
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=test_headers, timeout=10)
+                response = requests.get(url, headers=headers)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=test_headers, timeout=10)
+                if files:
+                    response = requests.post(url, data=data, files=files, headers=headers)
+                else:
+                    response = requests.post(url, json=data, headers=headers)
             elif method == 'PUT':
-                response = requests.put(url, json=data, headers=test_headers, timeout=10)
+                response = requests.put(url, json=data, headers=headers)
             elif method == 'DELETE':
-                response = requests.delete(url, headers=test_headers, timeout=10)
-            else:
-                self.log_result(name, False, f"Unsupported method: {method}")
-                return False, {}
+                response = requests.delete(url, headers=headers)
 
             success = response.status_code == expected_status
-            details = f"Status: {response.status_code}, Expected: {expected_status}"
-            
-            try:
-                response_data = response.json() if response.text else {}
-            except:
-                response_data = {"raw_response": response.text}
-            
-            if not success:
-                details += f", Response: {response.text[:200]}"
-            
-            self.log_result(name, success, details)
-            return success, response_data
+            if success:
+                self.tests_passed += 1
+                print(f"✅ Passed - Status: {response.status_code}")
+                try:
+                    response_data = response.json()
+                    print(f"   Response sample: {str(response_data)[:200]}...")
+                    return True, response_data
+                except:
+                    print(f"   Response: {response.text[:200]}...")
+                    return True, {}
+            else:
+                print(f"❌ Failed - Expected {expected_status}, got {response.status_code}")
+                print(f"   Response: {response.text[:500]}")
+                self.failed_tests.append({
+                    "test": name,
+                    "expected": expected_status, 
+                    "actual": response.status_code,
+                    "response": response.text[:300]
+                })
+                return False, {}
 
-        except requests.exceptions.Timeout:
-            self.log_result(name, False, "Request timeout")
-            return False, {}
-        except requests.exceptions.ConnectionError:
-            self.log_result(name, False, "Connection error")
-            return False, {}
         except Exception as e:
-            self.log_result(name, False, f"Error: {str(e)}")
+            print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({
+                "test": name,
+                "error": str(e)
+            })
             return False, {}
 
     def test_login(self):
-        """Test personal trainer login - create account if needed"""
-        print("\n🔐 Testing Authentication...")
-        
-        # Try to login as personal trainer
-        personal_email = "testpersonal@test.com"
-        personal_password = "testpass123"
-        
+        """Test login with personal trainer credentials"""
         success, response = self.run_test(
             "Personal Trainer Login",
             "POST",
             "auth/login",
             200,
-            data={"email": personal_email, "password": personal_password}
+            data={"email": "personal@teste.com", "password": "teste123"}
         )
-        
         if success and 'access_token' in response:
             self.token = response['access_token']
-            print(f"   ✅ Successfully authenticated as {response.get('user', {}).get('name', 'Unknown')}")
+            print(f"   Logged in as: {response.get('user', {}).get('name', 'Unknown')}")
             return True
-        else:
-            # Try to register personal trainer
-            print("   Personal trainer not found, registering new one...")
-            reg_success, reg_response = self.run_test(
-                "Register Personal Trainer",
-                "POST", 
-                "auth/register",
-                200,
-                data={
-                    "email": personal_email,
-                    "name": "Test Personal",
-                    "password": personal_password,
-                    "role": "personal"
-                }
-            )
-            
-            if reg_success:
-                print("   ✅ Personal trainer registered, now need admin approval...")
-                # Login as admin to approve the personal trainer
-                admin_success, admin_response = self.run_test(
-                    "Admin Login for Approval",
-                    "POST",
-                    "auth/login", 
-                    200,
-                    data={"email": "Personal@admin.com", "password": "admin123"}
-                )
-                
-                if admin_success and 'access_token' in admin_response:
-                    admin_token = admin_response['access_token']
-                    personal_id = reg_response.get('user', {}).get('id')
-                    
-                    if personal_id:
-                        # Approve the personal trainer
-                        approval_headers = {'Authorization': f'Bearer {admin_token}'}
-                        approve_success, _ = self.run_test(
-                            "Approve Personal Trainer",
-                            "POST",
-                            f"admin/personals/{personal_id}/approve",
-                            200,
-                            headers=approval_headers
-                        )
-                        
-                        if approve_success:
-                            # Now try to login as personal trainer again
-                            success, response = self.run_test(
-                                "Personal Trainer Login After Approval",
-                                "POST",
-                                "auth/login",
-                                200,
-                                data={"email": personal_email, "password": personal_password}
-                            )
-                            
-                            if success and 'access_token' in response:
-                                self.token = response['access_token']
-                                print(f"   ✅ Successfully authenticated as {response.get('user', {}).get('name', 'Unknown')}")
-                                return True
-            
-            print("   ❌ Could not set up personal trainer authentication")
-            return False
+        return False
 
-    def test_basic_endpoints(self):
-        """Test basic endpoints that should work"""
-        print("\n📋 Testing Basic Endpoints...")
-        
-        # Test getting students (should work for admin)
-        self.run_test("Get Students", "GET", "students", 200)
-        
-        # Test getting workouts 
-        self.run_test("Get Workouts", "GET", "workouts", 200)
-
-    def test_delete_workout_endpoint(self):
-        """Test the DELETE /api/workouts/{workout_id} endpoint"""
-        print("\n🗑️  Testing DELETE Workout Endpoint...")
-        
-        # First, try to get workouts to find one to delete
-        success, workouts_response = self.run_test("Get Workouts for Deletion Test", "GET", "workouts", 200)
-        
-        if success and workouts_response:
-            workouts = workouts_response if isinstance(workouts_response, list) else workouts_response.get('data', [])
-            
-            if workouts and len(workouts) > 0:
-                # Try to delete the first workout
-                workout_id = workouts[0].get('id')
-                if workout_id:
-                    print(f"   Found workout ID: {workout_id}")
-                    self.run_test(
-                        "DELETE Workout Endpoint", 
-                        "DELETE", 
-                        f"workouts/{workout_id}", 
-                        200  # Expecting 200 for successful deletion
-                    )
-                else:
-                    self.log_result("DELETE Workout Endpoint", False, "No workout ID found in response")
-            else:
-                # Test with a fake ID to ensure the endpoint exists and returns proper 404
-                self.run_test(
-                    "DELETE Workout Endpoint (Fake ID)", 
-                    "DELETE", 
-                    "workouts/fake-workout-id", 
-                    404  # Should return 404 for non-existent workout
-                )
-        else:
-            # Test with a fake ID to ensure the endpoint exists
-            self.run_test(
-                "DELETE Workout Endpoint (No Workouts Found)", 
-                "DELETE", 
-                "workouts/test-workout-id", 
-                404  # Should return 404 for non-existent workout
-            )
-
-    def test_feedback_endpoints(self):
-        """Test feedback related endpoints"""
-        print("\n💬 Testing Feedback Endpoints...")
-        
-        # First create a student to test with
-        success, create_response = self.run_test(
-            "Create Test Student", 
-            "POST", 
-            "students", 
-            200,
-            data={
-                "email": "teststudent@test.com",
-                "name": "Test Student",
-                "password": "testpass123",
-                "phone": "123456789"
-            }
+    def test_exercise_library_categories(self):
+        """Test getting exercise categories"""
+        success, response = self.run_test(
+            "Get Exercise Categories",
+            "GET", 
+            "exercise-library/categories",
+            200
         )
-        
-        if success and create_response:
-            student_id = create_response.get('id')
-            if student_id:
-                print(f"   Created test student with ID: {student_id}")
-                
-                # Test feedback plan endpoint  
-                self.run_test("Get Feedback Plan", "GET", f"checkins/feedback-plan/{student_id}", 404)  # Should be 404 initially
-                
-                # Test creating feedback plan
-                self.run_test(
-                    "Create Feedback Plan", 
-                    "PUT", 
-                    f"checkins/feedback-plan/{student_id}",
-                    200,
-                    data={
-                        "mode": "weekly",
-                        "weekly_days": [1, 3, 5],
-                        "monthly_days": [],
-                        "active": True,
-                        "reminder_enabled": True
-                    }
-                )
-                
-                # Test feedback submissions
-                self.run_test("Get Feedback Submissions", "GET", f"checkins/feedback-submissions?student_id={student_id}", 200)
-                
-                # Test request feedback endpoint
-                self.run_test("Request Feedback", "POST", f"checkins/request-feedback/{student_id}", 200)
-        else:
-            # Test with existing students if creation failed
-            success, students_response = self.run_test("Get Students for Feedback Test", "GET", "students", 200)
-            
-            if success and students_response:
-                students = students_response if isinstance(students_response, list) else students_response.get('data', [])
-                
-                if students and len(students) > 0:
-                    student_id = students[0].get('id')
-                    if student_id:
-                        # Test feedback plan endpoint
-                        self.run_test("Get Feedback Plan", "GET", f"checkins/feedback-plan/{student_id}", 200)
-                        
-                        # Test feedback submissions
-                        self.run_test("Get Feedback Submissions", "GET", f"checkins/feedback-submissions?student_id={student_id}", 200)
-                        
-                        # Test request feedback endpoint
-                        self.run_test("Request Feedback", "POST", f"checkins/request-feedback/{student_id}", 200)
+        if success and 'categories' in response:
+            categories = response['categories']
+            print(f"   Found {len(categories)} categories: {categories[:3]}...")
+            return True, categories
+        return False, []
 
-    def save_results(self):
-        """Save test results to JSON file"""
-        report = {
-            "test_summary": {
-                "total_tests": self.tests_run,
-                "passed_tests": self.tests_passed,
-                "failed_tests": self.tests_run - self.tests_passed,
-                "success_rate": f"{(self.tests_passed / self.tests_run * 100):.1f}%" if self.tests_run > 0 else "0%",
-                "timestamp": datetime.now().isoformat()
-            },
-            "test_results": self.results
+    def test_get_exercise_library(self):
+        """Test getting all exercises from the library"""
+        success, response = self.run_test(
+            "Get All Exercises",
+            "GET",
+            "exercise-library",
+            200
+        )
+        if success and isinstance(response, list):
+            print(f"   Found {len(response)} exercises in library")
+            # Check if we have the expected 41 system exercises
+            system_exercises = [ex for ex in response if ex.get('is_system') or ex.get('personal_id') is None]
+            print(f"   System exercises: {len(system_exercises)}")
+            if len(system_exercises) >= 40:  # Should be around 41
+                print(f"✅ Expected system exercises found (~41)")
+            else:
+                print(f"⚠️  Expected ~41 system exercises, found {len(system_exercises)}")
+            return True, response
+        return False, []
+
+    def test_exercise_library_filtering(self):
+        """Test filtering exercises by category and search"""
+        print("\n📋 Testing Exercise Library Filtering...")
+        
+        # Test category filter
+        success, response = self.run_test(
+            "Filter by PEITORAL category",
+            "GET",
+            "exercise-library?category=PEITORAL",
+            200
+        )
+        if success:
+            print(f"   PEITORAL category exercises: {len(response)}")
+        
+        # Test search filter
+        success, response = self.run_test(
+            "Search 'supino' exercises", 
+            "GET",
+            "exercise-library?search=supino",
+            200
+        )
+        if success:
+            print(f"   'supino' search results: {len(response)}")
+            
+        return success
+
+    def test_update_exercise_library(self, exercise_id):
+        """Test updating an exercise in the library"""
+        update_data = {
+            "description": f"Updated description at {datetime.now()}",
+            "instructions": "New instructions for test exercise"
         }
         
-        with open("/app/backend_test_results.json", "w") as f:
-            json.dump(report, f, indent=2)
-        
-        print(f"\n📊 Test results saved to /app/backend_test_results.json")
+        success, response = self.run_test(
+            f"Update Exercise {exercise_id}",
+            "PUT",
+            f"exercise-library/{exercise_id}",
+            200,
+            data=update_data
+        )
+        return success, response
 
-    def print_summary(self):
-        """Print test summary"""
-        print(f"\n{'='*60}")
-        print(f"📊 TEST SUMMARY")
-        print(f"{'='*60}")
-        print(f"Total Tests Run: {self.tests_run}")
+    def test_video_upload_exercise_library(self, exercise_id):
+        """Test uploading MP4 video to an exercise"""
+        # Create a dummy MP4 file for testing
+        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp_file:
+            # Write minimal MP4 header (this is a fake but valid-looking file)
+            tmp_file.write(b'\x00\x00\x00\x20ftypmp42\x00\x00\x00\x00mp42isom')
+            tmp_file.write(b'\x00' * 1000)  # Add some padding
+            tmp_file_path = tmp_file.name
+
+        try:
+            with open(tmp_file_path, 'rb') as f:
+                files = {'file': ('test_video.mp4', f, 'video/mp4')}
+                success, response = self.run_test(
+                    f"Upload Video to Exercise {exercise_id}",
+                    "POST",
+                    f"exercise-library/{exercise_id}/upload-video", 
+                    200,
+                    files=files
+                )
+            return success, response
+        finally:
+            # Clean up temp file
+            Path(tmp_file_path).unlink(missing_ok=True)
+
+    def test_delete_video_exercise_library(self, exercise_id):
+        """Test deleting video from an exercise"""
+        success, response = self.run_test(
+            f"Delete Video from Exercise {exercise_id}",
+            "DELETE",
+            f"exercise-library/{exercise_id}/video",
+            200
+        )
+        return success, response
+
+    def run_comprehensive_tests(self):
+        """Run all exercise library tests"""
+        print("🚀 Starting Exercise Library API Tests...")
+        print(f"Backend URL: {self.base_url}")
+        
+        # Step 1: Login
+        if not self.test_login():
+            print("❌ Login failed, stopping tests")
+            return False
+
+        # Step 2: Test Categories
+        categories_success, categories = self.test_exercise_library_categories()
+        if not categories_success:
+            print("❌ Categories test failed")
+        
+        # Step 3: Test Get All Exercises
+        exercises_success, exercises = self.test_get_exercise_library()
+        if not exercises_success:
+            print("❌ Get exercises failed")
+            return False
+            
+        # Step 4: Test Filtering
+        self.test_exercise_library_filtering()
+        
+        if exercises:
+            # Pick first exercise for testing updates and video upload
+            test_exercise = exercises[0]
+            exercise_id = test_exercise['id']
+            print(f"\n🎯 Using exercise '{test_exercise['name']}' (ID: {exercise_id}) for detailed tests...")
+            
+            # Step 5: Test Update Exercise
+            update_success, _ = self.test_update_exercise_library(exercise_id)
+            
+            # Step 6: Test Video Upload
+            video_upload_success, upload_response = self.test_video_upload_exercise_library(exercise_id)
+            
+            # Step 7: Test Video Delete (only if upload succeeded)
+            if video_upload_success:
+                self.test_delete_video_exercise_library(exercise_id)
+        
+        # Print summary
+        print(f"\n📊 Test Results Summary:")
+        print(f"Tests Run: {self.tests_run}")
         print(f"Tests Passed: {self.tests_passed}")
-        print(f"Tests Failed: {self.tests_run - self.tests_passed}")
-        print(f"Success Rate: {(self.tests_passed / self.tests_run * 100):.1f}%" if self.tests_run > 0 else "0%")
+        print(f"Success Rate: {(self.tests_passed/self.tests_run*100):.1f}%")
         
-        if self.tests_run - self.tests_passed > 0:
-            print(f"\n❌ Failed Tests:")
-            for result in self.results:
-                if not result["passed"]:
-                    print(f"   - {result['test']}: {result['details']}")
+        if self.failed_tests:
+            print(f"\n❌ Failed Tests ({len(self.failed_tests)}):")
+            for i, failure in enumerate(self.failed_tests[:5], 1):
+                print(f"  {i}. {failure.get('test', 'Unknown')}")
+                if 'error' in failure:
+                    print(f"     Error: {failure['error']}")
+                else:
+                    print(f"     Expected {failure.get('expected')}, got {failure.get('actual')}")
         
-        print(f"{'='*60}")
+        return self.tests_passed == self.tests_run
 
 def main():
-    print("🚀 Starting FitMaster API Tests")
-    print("Testing 3 specific bug fixes:")
-    print("1. DELETE /api/workouts/{workout_id} endpoint")
-    print("2. Submit report button functionality")
-    print("3. FAQ chatbot refinements")
-    print("-" * 60)
+    tester = ExerciseLibraryTester("https://workout-removal-fix.preview.emergentagent.com")
     
-    tester = FitMasterAPITester()
+    success = tester.run_comprehensive_tests()
     
-    # Test authentication first
-    if not tester.test_login():
-        print("❌ Cannot proceed without authentication")
+    if success:
+        print("\n🎉 All exercise library tests passed!")
+        return 0
+    else:
+        print(f"\n💥 Some tests failed. Passed: {tester.tests_passed}/{tester.tests_run}")
         return 1
-    
-    # Test basic functionality
-    tester.test_basic_endpoints()
-    
-    # Test the specific DELETE workout endpoint (Bug Fix #1)
-    tester.test_delete_workout_endpoint()
-    
-    # Test feedback functionality (Bug Fix #2)
-    tester.test_feedback_endpoints()
-    
-    # Save results and show summary
-    tester.save_results()
-    tester.print_summary()
-    
-    return 0 if tester.tests_passed == tester.tests_run else 1
 
 if __name__ == "__main__":
     sys.exit(main())
