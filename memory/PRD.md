@@ -1,71 +1,48 @@
-# FitMaster - PRD (Product Requirements Document)
+# FitMaster - PRD
 
-## Visão Geral
-Plataforma de Personal Trainer para gestão de alunos, treinos, avaliações e acompanhamento de progresso.
+## Problem Statement
+FitMaster - Personal Trainer management platform. Three bug fixes requested:
+1. Error removing workouts (erro ao remover treino)
+2. Submit report button doesn't work (botão de enviar relato não funciona)
+3. Refine FAQ chatbot (add return to categories button, ability to go back to previous question)
 
-## Stack Técnico
-- Frontend: React + Tailwind CSS + Shadcn/UI
-- Backend: FastAPI (Python)
-- Database: MongoDB
-- Design: Electric Cyan Theme, Glassmorphism, Bento Grid Layout
+## Architecture
+- **Backend**: FastAPI (Python) with MongoDB
+- **Frontend**: React with Tailwind CSS
+- **Database**: MongoDB (motor async driver)
+- **Auth**: JWT-based authentication
 
-## Funcionalidades Implementadas
+## User Personas
+- **Administrador**: Approves personal trainers
+- **Personal Trainer**: Manages students, workouts, assessments, financial, feedback
+- **Student (Aluno)**: Views workouts, logs progress, submits check-ins/reports, FAQ chatbot
 
-### Core Features (v1.0)
-- [x] Autenticação JWT (Personal e Aluno)
-- [x] Dashboard do Personal (Bento Grid Layout)
-- [x] Gestão de Alunos
-- [x] Upload de Planilhas de Treino (CSV/XLSX)
-- [x] Biblioteca de Exercícios
-- [x] Avaliações Físicas
-- [x] Check-ins e Frequência
-- [x] Sistema de Conquistas/Ranking
-- [x] Chat entre Personal e Aluno
-- [x] Financeiro (Mensalidades)
-- [x] Fotos de Evolução
+## Core Requirements
+- Workout management (upload, assign, delete)
+- Student check-in and feedback/report system
+- FAQ chatbot for student support
+- Financial management
+- Progress tracking and gamification
 
-### Features Recentes (Março 2026)
-- [x] Upload de PDF Aeróbico por treino
-- [x] Upload de Vídeo MP4 para exercícios (substitui YouTube)
-- [x] Cálculo de Gasto Calórico em tempo real
-- [x] Sistema de Devolutiva (Check-in sob demanda)
-- [x] Campo "Igreja" removido do sistema
+## What's Been Implemented (2026-03-06)
 
-### UI/UX Refinement (Março 2026)
-- [x] Tema Electric Cyan (#00F0FF)
-- [x] Glassmorphism na Sidebar e Cards
-- [x] Bento Grid Layout no Dashboard
-- [x] Tipografia Barlow Condensed para headings
-- [x] Micro-animações e transições suaves
-- [x] Background com gradientes radiais
-- [x] Noise texture overlay
-- [x] Ícones Lucide com strokeWidth refinado
+### Bug Fixes Applied
+1. **DELETE workout endpoint** - Added missing `@api_router.delete("/workouts/{workout_id}")` decorator in `server.py` (line ~2893). The function existed but had no route decorator, causing 404/405 errors.
 
-## Backlog (Priorizado)
+2. **Submit report button** - Fixed validation in `CheckinsPage.jsx` `handleSubmitStudentFeedback()` - changed from `!isTodayFeedbackDay` to `(!isTodayFeedbackDay && !pendingFeedbackRequest)` so students can submit reports when personal trainer requests feedback even if it's not a scheduled feedback day.
 
-### P0 - Crítico
-- Nenhum item pendente
+3. **FAQ Chatbot refinement** - Rewrote `FAQChatPopup.jsx` with:
+   - Inline action buttons after bot answers ("Mais sobre [categoria]" and "Categorias")
+   - Navigation bar with "Categorias" and last viewed category buttons
+   - "Voltar as categorias" button at bottom of question list
+   - State tracking for last viewed category and question
+   - Back button in header when viewing a category
 
-### P1 - Alta Prioridade
-- [ ] Notificações push para devolutivas
-- [ ] Relatórios em PDF para alunos
-- [ ] Backup automático de dados
+## Prioritized Backlog
+- P0: All critical bugs fixed
+- P1: N/A
+- P2: FAQ chatbot "Fale com seu personal" button could navigate to chat page
 
-### P2 - Média Prioridade
-- [ ] App mobile nativo
-- [ ] Integração com smartwatches
-- [ ] Templates de treino pré-definidos
-
-### P3 - Baixa Prioridade
-- [ ] Modo offline
-- [ ] Gamificação avançada
-- [ ] Integração com nutricionistas
-
-## Credenciais de Teste
-- Personal: personal.demo@fitmaster.com / demo123
-- Aluno: aluno.demo@fitmaster.com / demo123
-- Admin: Personal@admin.com / admin123
-
-## Data
-- Criado: Março 2026
-- Última atualização: 04/03/2026
+## Next Tasks
+- User testing to confirm all flows work end-to-end
+- Consider adding workout deletion confirmation dialog
