@@ -1,11 +1,7 @@
 # FitMaster - PRD
 
 ## Problem Statement
-FitMaster - Personal Trainer management platform. Bug fixes and feature improvements:
-1. Error removing workouts (erro ao remover treino) - FIXED
-2. Submit report button doesn't work (botão de enviar relato não funciona) - FIXED
-3. Refine FAQ chatbot (add return to categories button, ability to go back) - FIXED
-4. Exercise Library: all exercises should appear individually, be editable, with video upload capability - IMPLEMENTED
+FitMaster - Personal Trainer management platform. Bug fixes and feature improvements.
 
 ## Architecture
 - **Backend**: FastAPI (Python) with MongoDB
@@ -13,50 +9,40 @@ FitMaster - Personal Trainer management platform. Bug fixes and feature improvem
 - **Database**: MongoDB (motor async driver)
 - **Auth**: JWT-based authentication
 
-## User Personas
-- **Administrador**: Approves personal trainers
-- **Personal Trainer**: Manages students, workouts, assessments, exercises, financial, feedback
-- **Student (Aluno)**: Views workouts, logs progress, submits check-ins/reports, FAQ chatbot
-
-## Core Requirements
-- Workout management (upload, assign, delete)
-- Student check-in and feedback/report system
-- FAQ chatbot for student support
-- Exercise Library with video management
-- Financial management
-- Progress tracking and gamification
-
 ## What's Been Implemented
 
-### Session 1 (2026-03-06) - Bug Fixes
-1. **DELETE workout endpoint** - Added missing `@api_router.delete("/workouts/{workout_id}")` decorator in `server.py`
-2. **Submit report button** - Fixed validation in `CheckinsPage.jsx` to allow submission when pendingFeedbackRequest exists
-3. **FAQ Chatbot refinement** - Rewrote `FAQChatPopup.jsx` with navigation buttons, inline action buttons, back-to-categories
+### Session 1 - Bug Fixes (2026-03-06)
+1. **DELETE workout endpoint** - Added missing route decorator
+2. **Submit report button** - Fixed validation for pendingFeedbackRequest
+3. **FAQ Chatbot refinement** - Navigation buttons, back-to-categories
 
-### Session 2 (2026-03-06) - Exercise Library Enhancement
-1. **Backend seed function** - `seed_system_exercises()` inserts 41 exercises from EXERCISE_IMAGES/EXERCISE_VIDEOS into exercise_library collection on startup
-2. **PUT /exercise-library/{id}** - Edit exercise details (name, category, description, instructions, video_url, image_url)
-3. **POST /exercise-library/{id}/upload-video** - Upload MP4/WebM/MOV videos directly to exercises
-4. **DELETE /exercise-library/{id}/video** - Remove uploaded video from exercise
-5. **ExerciseLibraryUpdate model** - Added with mp4_video_url field
-6. **Frontend ExerciseLibraryPage** - Complete rewrite with:
-   - Individual exercise cards with image, video badge (YT/MP4), system badge
-   - Edit dialog with all fields + video upload
-   - Quick upload video button on each card
-   - Video preview dialog (MP4 player + YouTube iframe)
-   - Category filter badges + search input
+### Session 2 - Exercise Library (2026-03-06)
+1. **41 system exercises seeded** into exercise_library collection
+2. **PUT /exercise-library/{id}** - Edit exercise details
+3. **POST /exercise-library/{id}/upload-video** - Upload MP4/WebM/MOV videos
+4. **DELETE /exercise-library/{id}/video** - Remove uploaded video
+5. **ExerciseLibraryPage** - Complete rewrite with cards, edit, upload, preview
 
-## Test Results
-- Backend: 100% (8/8 API tests passed)
-- Frontend: Exercise Library page accessible at /biblioteca, 41 exercises displayed
+### Session 3 - Video Playback Fix (2026-03-06)
+**Root cause**: `/uploads/` path was being served by React frontend (returning HTML) instead of backend. Videos loaded but browser received HTML content instead of video data.
 
-## Prioritized Backlog
-- P0: All critical bugs fixed ✓
-- P1: Exercise Library with video management ✓
-- P2: FAQ chatbot "Fale com seu personal" link to chat page
-- P2: Workout deletion confirmation dialog improvement
+**Fix applied**:
+1. Created `GET /api/uploads/{file_name}` endpoint with `FileResponse` to serve files via API route
+2. Updated ALL frontend references to use `/api/uploads/` prefix:
+   - `ExerciseLibraryPage.jsx` - video preview dialog
+   - `SetTracker.jsx` - exercise video in workout session
+   - `EvolutionPhotosPage.jsx` - photo URLs
+   - `CheckinsPage.jsx` - feedback photos
+   - `WorkoutsPage.jsx` - aerobic PDF URLs
+   - `StudentDashboard.jsx` - aerobic PDF URLs
+
+**Verified**: Files served with correct Content-Type (`video/mp4`, etc.) and 200 status. YouTube embeds also working correctly.
+
+## Credentials
+- Admin: Personal@admin.com / admin123
+- Personal: personal@teste.com / teste123
 
 ## Next Tasks
-- User testing of exercise video upload/preview flow
-- Add batch video upload capability
-- Student-side exercise video viewing experience
+- P1: Student-side exercise video viewing
+- P2: Batch video upload
+- P2: FAQ "Fale com seu personal" link

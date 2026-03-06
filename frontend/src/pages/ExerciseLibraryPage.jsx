@@ -519,7 +519,7 @@ export default function ExerciseLibraryPage() {
               <div className="aspect-video w-full bg-black">
                 {videoPreview?.mp4_video_url ? (
                   <video
-                    src={`${process.env.REACT_APP_BACKEND_URL}${videoPreview.mp4_video_url}`}
+                    src={`${process.env.REACT_APP_BACKEND_URL}/api${videoPreview.mp4_video_url}`}
                     controls
                     className="w-full h-full"
                     autoPlay

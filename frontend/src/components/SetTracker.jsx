@@ -430,7 +430,7 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                     <video
                       controls
                       className="w-full h-full"
-                      src={`${process.env.REACT_APP_BACKEND_URL}${mp4VideoUrl}`}
+                      src={`${process.env.REACT_APP_BACKEND_URL}/api${mp4VideoUrl}`}
                       data-testid="exercise-video-mp4"
                     >
                       Seu navegador não suporta o elemento de vídeo.

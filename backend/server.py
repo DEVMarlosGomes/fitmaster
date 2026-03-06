@@ -1,6 +1,7 @@
 from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, status, Form, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -1239,6 +1240,16 @@ async def delete_routine(routine_id: str, personal: dict = Depends(get_personal_
     
     await db.workouts.delete_many({"routine_id": routine_id})
     return {"message": "Rotina removida com sucesso"}
+
+# ==================== SERVE UPLOADS ====================
+
+@api_router.get("/uploads/{file_name:path}")
+async def serve_upload_file(file_name: str):
+    """Serve uploaded files (videos, images, PDFs) via API route"""
+    file_path = UPLOAD_DIR / file_name
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    return FileResponse(file_path)
 
 # ==================== EXERCISE LIBRARY ====================
 

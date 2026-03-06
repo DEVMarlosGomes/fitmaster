@@ -246,7 +246,7 @@ export default function StudentDashboard() {
               <Button
                 variant="outline"
                 className="gap-2 text-orange-400 border-orange-400/50 hover:bg-orange-400/10"
-                onClick={() => window.open(`${process.env.REACT_APP_BACKEND_URL}${workout.aerobic_pdf_url}`, '_blank')}
+                onClick={() => window.open(`${process.env.REACT_APP_BACKEND_URL}/api${workout.aerobic_pdf_url}`, '_blank')}
                 data-testid="download-aerobic-pdf"
               >
                 <FileText className="w-4 h-4" />
