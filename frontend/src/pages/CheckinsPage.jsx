@@ -577,7 +577,7 @@ export default function CheckinsPage() {
   };
 
   const handleSubmitStudentFeedback = async () => {
-    if (!feedbackPlan || !isTodayFeedbackDay) {
+    if (!feedbackPlan || (!isTodayFeedbackDay && !pendingFeedbackRequest)) {
       toast.error("Hoje nao esta configurado para envio de relato.");
       return;
     }

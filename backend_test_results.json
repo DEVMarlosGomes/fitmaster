@@ -1,0 +1,71 @@
+{
+  "test_summary": {
+    "total_tests": 10,
+    "passed_tests": 10,
+    "failed_tests": 0,
+    "success_rate": "100.0%",
+    "timestamp": "2026-03-06T14:27:45.920788"
+  },
+  "test_results": [
+    {
+      "test": "Personal Trainer Login",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:44.463262"
+    },
+    {
+      "test": "Get Students",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:44.578093"
+    },
+    {
+      "test": "Get Workouts",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:44.691089"
+    },
+    {
+      "test": "Get Workouts for Deletion Test",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:44.826042"
+    },
+    {
+      "test": "DELETE Workout Endpoint (No Workouts Found)",
+      "passed": true,
+      "details": "Status: 404, Expected: 404",
+      "timestamp": "2026-03-06T14:27:44.937820"
+    },
+    {
+      "test": "Create Test Student",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:45.282083"
+    },
+    {
+      "test": "Get Feedback Plan",
+      "passed": true,
+      "details": "Status: 404, Expected: 404",
+      "timestamp": "2026-03-06T14:27:45.395624"
+    },
+    {
+      "test": "Create Feedback Plan",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:45.517475"
+    },
+    {
+      "test": "Get Feedback Submissions",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:45.621303"
+    },
+    {
+      "test": "Request Feedback",
+      "passed": true,
+      "details": "Status: 200, Expected: 200",
+      "timestamp": "2026-03-06T14:27:45.919075"
+    }
+  ]
+}

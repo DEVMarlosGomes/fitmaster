@@ -2890,6 +2890,8 @@ async def get_pending_feedback_request(current_user: dict = Depends(get_current_
         return {"has_pending": True, "request": request}
     
     return {"has_pending": False, "request": None}
+
+@api_router.delete("/workouts/{workout_id}")
 async def delete_workout(workout_id: str, personal: dict = Depends(get_personal_user)):
     result = await db.workouts.delete_one({"id": workout_id, "personal_id": personal["id"]})
     if result.deleted_count == 0:
