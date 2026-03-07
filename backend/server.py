@@ -1961,12 +1961,19 @@ async def create_feedback_submission(
         raise HTTPException(status_code=400, detail="Aluno sem personal vinculado")
 
     plan_doc = await db.feedback_plans.find_one({"student_id": student_id, "active": True}, {"_id": 0})
-    if not plan_doc:
+    
+    # Check if there's a pending feedback request from the personal
+    pending_request = await db.feedback_requests.find_one(
+        {"student_id": student_id, "status": "pending"}, {"_id": 0}
+    )
+    has_pending_request = pending_request is not None
+    
+    if not plan_doc and not has_pending_request:
         raise HTTPException(status_code=400, detail="Nao existe planejamento de feedback ativo para este aluno")
 
     reference_date = _clean_optional_text(payload.reference_date) or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     target_date = _parse_date_input(reference_date, "reference_date")
-    if not _is_feedback_day(plan_doc, target_date):
+    if not has_pending_request and plan_doc and not _is_feedback_day(plan_doc, target_date):
         raise HTTPException(status_code=400, detail="Feedback nao esta agendado para esta data")
 
     existing = await db.feedback_submissions.find_one(

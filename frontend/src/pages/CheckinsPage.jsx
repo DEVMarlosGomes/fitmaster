@@ -578,7 +578,7 @@ export default function CheckinsPage() {
   };
 
   const handleSubmitStudentFeedback = async () => {
-    if (!feedbackPlan || (!isTodayFeedbackDay && !pendingFeedbackRequest)) {
+    if ((!feedbackPlan && !pendingFeedbackRequest) || (!isTodayFeedbackDay && !pendingFeedbackRequest)) {
       toast.error("Hoje nao esta configurado para envio de relato.");
       return;
     }
@@ -1355,8 +1355,9 @@ export default function CheckinsPage() {
 
                 <Button
                   onClick={handleSubmitStudentFeedback}
-                  disabled={submittingStudentFeedback || !feedbackPlan || (!isTodayFeedbackDay && !pendingFeedbackRequest)}
+                  disabled={submittingStudentFeedback || (!feedbackPlan && !pendingFeedbackRequest) || (!isTodayFeedbackDay && !pendingFeedbackRequest)}
                   className="gap-2"
+                  data-testid="submit-student-feedback-btn"
                 >
                   {submittingStudentFeedback
                     ? (uploadingPhotoKey
