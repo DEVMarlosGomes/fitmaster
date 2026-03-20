@@ -1,0 +1,209 @@
+{
+  "extracted_total": 50,
+  "inserted_count": 37,
+  "skipped_existing_count": 13,
+  "inserted": [
+    {
+      "name": "Abdominal Infra",
+      "category": "ABD?MEN"
+    },
+    {
+      "name": "Abdominal Supra",
+      "category": "ABD?MEN"
+    },
+    {
+      "name": "Abducao De Quadril No Cabo",
+      "category": "GL?TEOS"
+    },
+    {
+      "name": "Afundo No Smith",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Agachamento Livre",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Avanço Com Barra",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Bulgaro Halteres",
+      "category": "GL?TEOS"
+    },
+    {
+      "name": "Cross Over Polia Media",
+      "category": "PEITORAL"
+    },
+    {
+      "name": "Crucifixo Máquina",
+      "category": "PEITORAL"
+    },
+    {
+      "name": "Desenvolvimento Halter",
+      "category": "OMBRO"
+    },
+    {
+      "name": "Desenvolvimento Halteres Sentado",
+      "category": "OMBRO"
+    },
+    {
+      "name": "Elevacao Lateral Halteres",
+      "category": "OMBRO"
+    },
+    {
+      "name": "Elevação Panturrilha",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Esteira",
+      "category": "AER?BIO"
+    },
+    {
+      "name": "Extensao De Quadril No Cabo",
+      "category": "GL?TEOS"
+    },
+    {
+      "name": "Flexão De Braço",
+      "category": "PEITORAL"
+    },
+    {
+      "name": "Hip Thrust Barra",
+      "category": "GL?TEOS"
+    },
+    {
+      "name": "Hip Thrust Smith",
+      "category": "GL?TEOS"
+    },
+    {
+      "name": "Leg Press 45 Pes Altos",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Mesa Flexora",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Panturrilha Em Pe",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Panturrilha Sentado",
+      "category": "INFERIORES"
+    },
+    {
+      "name": "Prancha Frontal",
+      "category": "ABD?MEN"
+    },
+    {
+      "name": "Prancha Lateral",
+      "category": "ABD?MEN"
+    },
+    {
+      "name": "Pulley Frente Pegada Aberta",
+      "category": "DORSAL"
+    },
+    {
+      "name": "Puxada Aberta",
+      "category": "DORSAL"
+    },
+    {
+      "name": "Remada Articulada Fechada",
+      "category": "DORSAL"
+    },
+    {
+      "name": "Remada Baixa Triangulo",
+      "category": "DORSAL"
+    },
+    {
+      "name": "Remada Máquina",
+      "category": "DORSAL"
+    },
+    {
+      "name": "Remada Unilateral Halter",
+      "category": "DORSAL"
+    },
+    {
+      "name": "Rosca Direta Halteres",
+      "category": "B?CEPS"
+    },
+    {
+      "name": "Stiff Halteres",
+      "category": "GL?TEOS"
+    },
+    {
+      "name": "Supino Inclinado Halter",
+      "category": "PEITORAL"
+    },
+    {
+      "name": "Supino Inclinado Halteres",
+      "category": "PEITORAL"
+    },
+    {
+      "name": "TESTE NOME EXERCICIO",
+      "category": "MOBILIDADE"
+    },
+    {
+      "name": "Triceps Frances Halter",
+      "category": "TR?CEPS"
+    },
+    {
+      "name": "Tríceps Banco",
+      "category": "TR?CEPS"
+    }
+  ],
+  "skipped_existing": [
+    {
+      "name": "Cadeira extensora",
+      "existing_as": "Cadeira Extensora"
+    },
+    {
+      "name": "Elevação Frontal",
+      "existing_as": "Elevação Frontal"
+    },
+    {
+      "name": "Elevação Lateral",
+      "existing_as": "Elevação Lateral"
+    },
+    {
+      "name": "Leg Press",
+      "existing_as": "Leg Press"
+    },
+    {
+      "name": "Levantamento terra",
+      "existing_as": "Levantamento Terra"
+    },
+    {
+      "name": "Prancha",
+      "existing_as": "Prancha"
+    },
+    {
+      "name": "Puxada Frontal",
+      "existing_as": "Puxada Frontal"
+    },
+    {
+      "name": "Remada Curvada",
+      "existing_as": "Remada Curvada"
+    },
+    {
+      "name": "Rosca Alternada",
+      "existing_as": "Rosca Alternada"
+    },
+    {
+      "name": "Rosca Direta",
+      "existing_as": "Rosca Direta"
+    },
+    {
+      "name": "Rosca martelo",
+      "existing_as": "Rosca Martelo"
+    },
+    {
+      "name": "Supino Reto",
+      "existing_as": "Supino Reto"
+    },
+    {
+      "name": "Triceps corda",
+      "existing_as": "Tríceps Corda"
+    }
+  ]
+}

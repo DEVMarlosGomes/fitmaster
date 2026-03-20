@@ -224,7 +224,7 @@ export default function ExerciseLibraryPage() {
             <DialogTrigger asChild>
               <Button className="gap-2" data-testid="add-exercise-btn">
                 <Plus className="w-4 h-4" />
-                + Criar Exercicio
+                Criar Exercicio
               </Button>
             </DialogTrigger>
             <DialogContent className="bg-card border-border">
@@ -508,11 +508,8 @@ export default function ExerciseLibraryPage() {
         <Dialog open={!!videoPreview} onOpenChange={(open) => !open && setVideoPreview(null)}>
           <DialogContent className="bg-card border-border max-w-3xl p-0 overflow-hidden">
             <DialogHeader className="p-4 pb-2">
-              <DialogTitle className="text-lg font-bold uppercase flex items-center justify-between">
+              <DialogTitle className="text-lg font-bold uppercase">
                 <span>{videoPreview?.name}</span>
-                <Button variant="ghost" size="icon" onClick={() => setVideoPreview(null)}>
-                  <X className="w-5 h-5" />
-                </Button>
               </DialogTitle>
             </DialogHeader>
             <DialogBody className="p-0">

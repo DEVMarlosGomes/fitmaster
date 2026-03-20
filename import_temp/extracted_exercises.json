@@ -1,0 +1,518 @@
+{
+  "count": 50,
+  "items": [
+    {
+      "key": "abdominal infra",
+      "name": "Abdominal Infra",
+      "groups": [
+        "Abdômen"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "abdominal supra",
+      "name": "Abdominal Supra",
+      "groups": [
+        "Abdômen"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "abducao de quadril no cabo",
+      "name": "Abducao de quadril no cabo",
+      "groups": [
+        "Gluteos"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "afundo no smith",
+      "name": "Afundo no smith",
+      "groups": [
+        "Quadriceps",
+        "Quadríceps"
+      ],
+      "sources": [
+        "TREINO CSV - TESTE.csv/csv:latin1",
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "agachamento livre",
+      "name": "Agachamento livre",
+      "groups": [
+        "Pernas",
+        "Quadriceps"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8",
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "avanco com barra",
+      "name": "Avanço com barra",
+      "groups": [
+        "Quadríceps"
+      ],
+      "sources": [
+        "TREINO CSV - TESTE.csv/csv:latin1"
+      ]
+    },
+    {
+      "key": "bulgaro halteres",
+      "name": "Bulgaro halteres",
+      "groups": [
+        "Gluteos"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "cadeira extensora",
+      "name": "Cadeira extensora",
+      "groups": [
+        "Pernas",
+        "Quadriceps"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8",
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "cross over polia media",
+      "name": "Cross over polia media",
+      "groups": [
+        "Peitoral"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "crucifixo maquina",
+      "name": "Crucifixo Máquina",
+      "groups": [
+        "Peito"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "desenvolvimento halter",
+      "name": "Desenvolvimento Halter",
+      "groups": [
+        "Ombro"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "desenvolvimento halteres sentado",
+      "name": "Desenvolvimento halteres sentado",
+      "groups": [
+        "Deltoides"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "elevacao lateral halteres",
+      "name": "Elevacao lateral halteres",
+      "groups": [
+        "Deltoides"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "elevacao frontal",
+      "name": "Elevação Frontal",
+      "groups": [
+        "Ombro"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "elevacao lateral",
+      "name": "Elevação Lateral",
+      "groups": [
+        "Ombro"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "elevacao panturrilha",
+      "name": "Elevação Panturrilha",
+      "groups": [
+        "Panturrilha"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "esteira",
+      "name": "Esteira",
+      "groups": [
+        "Full Body"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "extensao de quadril no cabo",
+      "name": "Extensao de quadril no cabo",
+      "groups": [
+        "Gluteos"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "flexao de braco",
+      "name": "Flexão de Braço",
+      "groups": [
+        "Peito"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "hip thrust barra",
+      "name": "Hip thrust barra",
+      "groups": [
+        "Gluteos",
+        "Glúteos"
+      ],
+      "sources": [
+        "TREINO CSV - TESTE.csv/csv:latin1",
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "hip thrust smith",
+      "name": "Hip thrust smith",
+      "groups": [
+        "Gluteos"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "leg press",
+      "name": "Leg Press",
+      "groups": [
+        "Pernas"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "leg press 45 pes altos",
+      "name": "Leg press 45 pes altos",
+      "groups": [
+        "Quadriceps"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "levantamento terra",
+      "name": "Levantamento terra",
+      "groups": [
+        "Posterior"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "mesa flexora",
+      "name": "Mesa flexora",
+      "groups": [
+        "Pernas",
+        "Posterior"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8",
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "panturrilha em pe",
+      "name": "Panturrilha em pe",
+      "groups": [
+        "Panturrilha"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "panturrilha sentado",
+      "name": "Panturrilha sentado",
+      "groups": [
+        "Panturrilha"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "prancha",
+      "name": "Prancha",
+      "groups": [
+        "Abdômen"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "prancha frontal",
+      "name": "Prancha frontal",
+      "groups": [
+        "Abdomen"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "prancha lateral",
+      "name": "Prancha lateral",
+      "groups": [
+        "Abdomen"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "pulley frente pegada aberta",
+      "name": "Pulley frente pegada aberta",
+      "groups": [
+        "Dorsal"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "puxada aberta",
+      "name": "Puxada Aberta",
+      "groups": [
+        "Costas"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "puxada frontal",
+      "name": "Puxada Frontal",
+      "groups": [
+        "Costas"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "remada articulada fechada",
+      "name": "Remada articulada fechada",
+      "groups": [
+        "Dorsal"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "remada baixa triangulo",
+      "name": "Remada baixa triangulo",
+      "groups": [
+        "Dorsal"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "remada curvada",
+      "name": "Remada Curvada",
+      "groups": [
+        "Costas"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "remada maquina",
+      "name": "Remada Máquina",
+      "groups": [
+        "Costas"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "remada unilateral halter",
+      "name": "Remada unilateral halter",
+      "groups": [
+        "Dorsal"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "rosca alternada",
+      "name": "Rosca Alternada",
+      "groups": [
+        "Bíceps"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "rosca direta",
+      "name": "Rosca Direta",
+      "groups": [
+        "Bíceps"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "rosca direta halteres",
+      "name": "Rosca direta halteres",
+      "groups": [
+        "Biceps"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "rosca martelo",
+      "name": "Rosca martelo",
+      "groups": [
+        "Biceps"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "stiff halteres",
+      "name": "Stiff halteres",
+      "groups": [
+        "Gluteos"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "supino inclinado halter",
+      "name": "Supino Inclinado Halter",
+      "groups": [
+        "Peito"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "supino inclinado halteres",
+      "name": "Supino inclinado halteres",
+      "groups": [
+        "Peitoral"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "supino reto",
+      "name": "Supino Reto",
+      "groups": [
+        "Peito"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "teste nome exercicio",
+      "name": "TESTE NOME EXERCICIO",
+      "groups": [
+        "Mobilidade"
+      ],
+      "sources": [
+        "TREINO CSV - TESTE.csv/csv:latin1"
+      ]
+    },
+    {
+      "key": "triceps corda",
+      "name": "Triceps corda",
+      "groups": [
+        "Triceps",
+        "Tríceps"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8",
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "key": "triceps frances halter",
+      "name": "Triceps frances halter",
+      "groups": [
+        "Triceps"
+      ],
+      "sources": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "key": "triceps banco",
+      "name": "Tríceps Banco",
+      "groups": [
+        "Tríceps"
+      ],
+      "sources": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    }
+  ],
+  "errors": []
+}

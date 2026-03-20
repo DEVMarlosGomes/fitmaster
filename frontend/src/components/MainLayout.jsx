@@ -36,7 +36,8 @@ import {
   CalendarCheck,
   Camera,
   Activity,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ClipboardCheck
 } from "lucide-react";
 
 // Links do Personal Trainer para Sidebar
@@ -53,6 +54,7 @@ const personalLinks = [
   { href: "/periodizacao", label: "Periodizacao", icon: Activity },
   { href: "/financeiro", label: "Financeiro", icon: DollarSign },
   { href: "/evolucao", label: "Evolução", icon: TrendingUp },
+  { href: "/relatos", label: "Relatos", icon: ClipboardCheck },
   { href: "/conquistas", label: "Ranking", icon: Trophy },
   { href: "/chat", label: "Chat", icon: MessageCircle },
 ];
@@ -60,6 +62,7 @@ const personalLinks = [
 // Links do Aluno
 const studentLinks = [
   { href: "/treino", label: "Meu Treino", icon: Dumbbell },
+  { href: "/meu-relato", label: "Relato Semanal", icon: ClipboardCheck },
   { href: "/meu-progresso", label: "Evolução", icon: TrendingUp },
   { href: "/minhas-avaliacoes", label: "Avaliações", icon: ClipboardList },
   { href: "/periodizacao", label: "Periodizacao", icon: Activity },
@@ -73,6 +76,7 @@ const studentLinks = [
 // Links principais para aluno (navbar horizontal)
 const studentMainLinks = [
   { href: "/treino", label: "Treino", icon: Dumbbell },
+  { href: "/meu-relato", label: "Relato", icon: ClipboardCheck },
   { href: "/meu-progresso", label: "Evolução", icon: TrendingUp },
   { href: "/periodizacao", label: "Periodizacao", icon: Activity },
   { href: "/frequencia", label: "Check-in", icon: CalendarCheck },

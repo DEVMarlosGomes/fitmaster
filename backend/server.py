@@ -153,6 +153,68 @@ def resolve_exercise_video_url(exercise_name: str) -> Optional[str]:
             return normalize_youtube_url(url)
     return None
 
+def _normalize_exercise_name_for_match(exercise_name: Optional[str]) -> str:
+    cleaned = exercise_name or ""
+    return re.sub(r"\s+", " ", _normalize_text_for_match(cleaned)).strip()
+
+def _safe_parse_iso_datetime(value: Optional[str]) -> datetime:
+    if not value:
+        return datetime.min.replace(tzinfo=timezone.utc)
+    parsed_value = str(value).strip()
+    if parsed_value.endswith("Z"):
+        parsed_value = parsed_value[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(parsed_value)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone.utc)
+        return parsed
+    except ValueError:
+        return datetime.min.replace(tzinfo=timezone.utc)
+
+def _exercise_library_priority_key(exercise: Dict[str, Any], personal_id: Optional[str]) -> tuple:
+    is_personal_match = bool(personal_id and exercise.get("personal_id") == personal_id)
+    updated_at = _safe_parse_iso_datetime(exercise.get("updated_at"))
+    return (1 if is_personal_match else 0, updated_at)
+
+async def _find_best_library_exercise_match(exercise_name: str, personal_id: Optional[str]) -> Optional[Dict[str, Any]]:
+    exercise_name_clean = (exercise_name or "").strip()
+    if not exercise_name_clean:
+        return None
+
+    scope_filters: List[Dict[str, Any]] = [{"is_system": True}]
+    if personal_id:
+        scope_filters.insert(0, {"personal_id": personal_id})
+
+    exact_matches = await db.exercise_library.find(
+        {
+            "$and": [
+                {"$or": scope_filters},
+                {"name": {"$regex": f"^{re.escape(exercise_name_clean)}$", "$options": "i"}}
+            ]
+        },
+        {"_id": 0}
+    ).to_list(20)
+
+    if exact_matches:
+        exact_matches.sort(key=lambda item: _exercise_library_priority_key(item, personal_id), reverse=True)
+        return exact_matches[0]
+
+    target_normalized = _normalize_exercise_name_for_match(exercise_name_clean)
+    if not target_normalized:
+        return None
+
+    candidates = await db.exercise_library.find({"$or": scope_filters}, {"_id": 0}).to_list(1500)
+    normalized_matches = [
+        item for item in candidates
+        if _normalize_exercise_name_for_match(item.get("name")) == target_normalized
+    ]
+
+    if not normalized_matches:
+        return None
+
+    normalized_matches.sort(key=lambda item: _exercise_library_priority_key(item, personal_id), reverse=True)
+    return normalized_matches[0]
+
 # ==================== MODELS ====================
 
 class UserBase(BaseModel):
@@ -190,6 +252,9 @@ class StudentUpdate(BaseModel):
     emergency_contact: Optional[str] = None
     address: Optional[str] = None
 
+class StudentActiveUpdate(BaseModel):
+    is_active: bool
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
@@ -208,6 +273,7 @@ class UserResponse(BaseModel):
     medical_restrictions: Optional[str] = None
     emergency_contact: Optional[str] = None
     address: Optional[str] = None
+    is_active: Optional[bool] = True
     is_approved: Optional[bool] = None
     approved_at: Optional[str] = None
     approved_by: Optional[str] = None
@@ -632,6 +698,8 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
             raise HTTPException(status_code=401, detail="Usuário não encontrado")
         if user.get("role") == "personal" and user.get("is_approved", True) is not True:
             raise HTTPException(status_code=403, detail="Conta de personal aguardando aprovacao do administrador")
+        if user.get("role") == "student" and user.get("is_active", True) is not True:
+            raise HTTPException(status_code=403, detail="Conta de aluno inativa. Contate seu personal")
         return user
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expirado")
@@ -713,6 +781,8 @@ async def login(credentials: UserLogin):
         raise HTTPException(status_code=401, detail="Email ou senha incorretos")
     if user.get("role") == "personal" and user.get("is_approved", True) is not True:
         raise HTTPException(status_code=403, detail="Conta de personal aguardando aprovacao do administrador")
+    if user.get("role") == "student" and user.get("is_active", True) is not True:
+        raise HTTPException(status_code=403, detail="Conta de aluno inativa. Contate seu personal")
     
     token = create_token(user["id"], user["role"])
     return TokenResponse(
@@ -729,6 +799,9 @@ async def login(credentials: UserLogin):
             gender=user.get("gender"),
             objective=user.get("objective"),
             medical_restrictions=user.get("medical_restrictions"),
+            emergency_contact=user.get("emergency_contact"),
+            address=user.get("address"),
+            is_active=user.get("is_active", True),
             is_approved=user.get("is_approved"),
             approved_at=user.get("approved_at"),
             approved_by=user.get("approved_by"),
@@ -750,6 +823,9 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         gender=current_user.get("gender"),
         objective=current_user.get("objective"),
         medical_restrictions=current_user.get("medical_restrictions"),
+        emergency_contact=current_user.get("emergency_contact"),
+        address=current_user.get("address"),
+        is_active=current_user.get("is_active", True),
         is_approved=current_user.get("is_approved"),
         approved_at=current_user.get("approved_at"),
         approved_by=current_user.get("approved_by"),
@@ -845,6 +921,7 @@ async def create_student(student: StudentCreate, personal: dict = Depends(get_pe
         "medical_restrictions": student.medical_restrictions,
         "emergency_contact": student.emergency_contact,
         "address": student.address,
+        "is_active": True,
         "created_at": now
     }
     
@@ -874,6 +951,7 @@ async def create_student(student: StudentCreate, personal: dict = Depends(get_pe
         medical_restrictions=student.medical_restrictions,
         emergency_contact=student.emergency_contact,
         address=student.address,
+        is_active=True,
         created_at=now
     )
 
@@ -898,6 +976,7 @@ async def list_students(personal: dict = Depends(get_personal_user)):
         medical_restrictions=s.get("medical_restrictions"),
         emergency_contact=s.get("emergency_contact"),
         address=s.get("address"),
+        is_active=s.get("is_active", True),
         created_at=s["created_at"]
     ) for s in students]
 
@@ -924,6 +1003,7 @@ async def get_student(student_id: str, personal: dict = Depends(get_personal_use
         medical_restrictions=student.get("medical_restrictions"),
         emergency_contact=student.get("emergency_contact"),
         address=student.get("address"),
+        is_active=student.get("is_active", True),
         created_at=student["created_at"]
     )
 
@@ -954,6 +1034,48 @@ async def update_student(student_id: str, update: StudentUpdate, personal: dict 
         medical_restrictions=updated.get("medical_restrictions"),
         emergency_contact=updated.get("emergency_contact"),
         address=updated.get("address"),
+        is_active=updated.get("is_active", True),
+        created_at=updated["created_at"]
+    )
+
+@api_router.patch("/students/{student_id}/active", response_model=UserResponse)
+async def set_student_active_status(
+    student_id: str,
+    payload: StudentActiveUpdate,
+    personal: dict = Depends(get_personal_user)
+):
+    student = await db.users.find_one(
+        {"id": student_id, "personal_id": personal["id"], "role": "student"},
+        {"_id": 0, "password": 0}
+    )
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno nÃ£o encontrado")
+
+    await db.users.update_one(
+        {"id": student_id, "personal_id": personal["id"], "role": "student"},
+        {"$set": {"is_active": bool(payload.is_active)}}
+    )
+
+    updated = await db.users.find_one(
+        {"id": student_id, "personal_id": personal["id"], "role": "student"},
+        {"_id": 0, "password": 0}
+    )
+
+    return UserResponse(
+        id=updated["id"],
+        email=updated["email"],
+        name=updated["name"],
+        role=updated["role"],
+        personal_id=updated.get("personal_id"),
+        phone=updated.get("phone"),
+        notes=updated.get("notes"),
+        birth_date=updated.get("birth_date"),
+        gender=updated.get("gender"),
+        objective=updated.get("objective"),
+        medical_restrictions=updated.get("medical_restrictions"),
+        emergency_contact=updated.get("emergency_contact"),
+        address=updated.get("address"),
+        is_active=updated.get("is_active", True),
         created_at=updated["created_at"]
     )
 
@@ -2093,6 +2215,12 @@ async def create_feedback_submission(
         upsert=True
     )
 
+    if has_pending_request:
+        await db.feedback_requests.update_many(
+            {"student_id": student_id, "personal_id": personal_id, "status": "pending"},
+            {"$set": {"status": "responded", "responded_at": now}}
+        )
+
     return _build_feedback_submission_response(submission_doc)
 
 @api_router.get("/checkins/feedback-submissions", response_model=List[FeedbackSubmissionResponse])
@@ -2788,9 +2916,13 @@ async def upload_exercise_video(
     """Upload de vídeo MP4 para um exercício específico"""
     if not file.filename.lower().endswith('.mp4'):
         raise HTTPException(status_code=400, detail="Apenas arquivos MP4 são aceitos")
+
+    exercise_name_clean = (exercise_name or "").strip()
+    exercise_name_lower = exercise_name_clean.lower()
+    exercise_name_normalized = re.sub(r"\s+", " ", _normalize_text_for_match(exercise_name_clean)).strip()
     
     # Nome seguro para o arquivo
-    safe_name = exercise_name.lower().replace(" ", "_").replace("/", "_")
+    safe_name = re.sub(r"[^a-z0-9_]+", "_", exercise_name_normalized.replace(" ", "_")).strip("_") or "exercise"
     file_name = f"video_{safe_name}_{uuid.uuid4().hex[:8]}.mp4"
     file_path = UPLOAD_DIR / file_name
     
@@ -2805,8 +2937,11 @@ async def upload_exercise_video(
     
     # Verificar se já existe vídeo para este exercício
     existing = await db.exercise_videos.find_one({
-        "exercise_name_lower": exercise_name.lower(),
-        "personal_id": personal["id"]
+        "personal_id": personal["id"],
+        "$or": [
+            {"exercise_name_lower": exercise_name_lower},
+            {"exercise_name_normalized": exercise_name_normalized}
+        ]
     })
     
     if existing:
@@ -2820,13 +2955,20 @@ async def upload_exercise_video(
         
         await db.exercise_videos.update_one(
             {"id": existing["id"]},
-            {"$set": {"video_url": video_url, "updated_at": now}}
+            {"$set": {
+                "exercise_name": exercise_name_clean,
+                "exercise_name_lower": exercise_name_lower,
+                "exercise_name_normalized": exercise_name_normalized,
+                "video_url": video_url,
+                "updated_at": now
+            }}
         )
     else:
         await db.exercise_videos.insert_one({
             "id": video_id,
-            "exercise_name": exercise_name,
-            "exercise_name_lower": exercise_name.lower(),
+            "exercise_name": exercise_name_clean,
+            "exercise_name_lower": exercise_name_lower,
+            "exercise_name_normalized": exercise_name_normalized,
             "video_url": video_url,
             "personal_id": personal["id"],
             "created_at": now,
@@ -2840,15 +2982,39 @@ async def upload_exercise_video(
 async def get_exercise_video_mp4(exercise_name: str, current_user: dict = Depends(get_current_user)):
     """Retorna a URL do vídeo MP4 de um exercício"""
     personal_id = current_user["id"] if current_user["role"] == "personal" else current_user.get("personal_id")
+    exercise_name_clean = (exercise_name or "").strip()
+    exercise_name_lower = exercise_name_clean.lower()
+    exercise_name_normalized = _normalize_exercise_name_for_match(exercise_name_clean)
     
     # Buscar vídeo do personal
     video = await db.exercise_videos.find_one({
-        "exercise_name_lower": exercise_name.lower(),
-        "personal_id": personal_id
-    }, {"_id": 0})
+        "personal_id": personal_id,
+        "$or": [
+            {"exercise_name_lower": exercise_name_lower},
+            {"exercise_name_normalized": exercise_name_normalized}
+        ]
+    }, {"_id": 0, "video_url": 1, "updated_at": 1})
+
+    # Buscar vídeo MP4 na biblioteca de exercícios (fluxo da página Exercícios)
+    library_exercise = await _find_best_library_exercise_match(exercise_name_clean, personal_id)
+    library_video_url = library_exercise.get("mp4_video_url") if library_exercise else None
+
+    chosen_video_url = None
+    if video and library_video_url:
+        personal_video_updated = _safe_parse_iso_datetime(video.get("updated_at"))
+        library_video_updated = _safe_parse_iso_datetime(library_exercise.get("updated_at"))
+        chosen_video_url = (
+            library_video_url
+            if library_video_updated >= personal_video_updated
+            else video.get("video_url")
+        )
+    elif library_video_url:
+        chosen_video_url = library_video_url
+    elif video:
+        chosen_video_url = video.get("video_url")
     
-    if video:
-        return {"video_url": video.get("video_url"), "type": "mp4"}
+    if chosen_video_url:
+        return {"video_url": chosen_video_url, "type": "mp4"}
     
     # Se não encontrar, retornar None
     return {"video_url": None, "type": None}
@@ -3619,7 +3785,11 @@ async def get_conversations(current_user: dict = Depends(get_current_user)):
 # ==================== EXERCISE VIDEOS ====================
 
 @api_router.get("/exercises/video/{exercise_name}")
-async def get_exercise_video_endpoint(exercise_name: str):
+async def get_exercise_video_endpoint(exercise_name: str, current_user: dict = Depends(get_current_user)):
+    personal_id = current_user["id"] if current_user["role"] == "personal" else current_user.get("personal_id")
+    library_exercise = await _find_best_library_exercise_match(exercise_name, personal_id)
+    if library_exercise and library_exercise.get("video_url"):
+        return {"video_url": normalize_youtube_url(library_exercise.get("video_url"))}
     return {"video_url": resolve_exercise_video_url(exercise_name)}
 
 @api_router.get("/exercises/search")
@@ -4236,6 +4406,298 @@ async def seed_system_exercises():
     
     if inserted > 0:
         print(f"[SEED] {inserted} exercícios do sistema inseridos na biblioteca")
+
+
+# ==================== RELATO SEMANAL MODELS ====================
+
+class RelatoSemanalCreate(BaseModel):
+    # Dieta
+    dieta_aderencia: Optional[int] = Field(default=None, ge=0, le=100)
+    dieta_qualidade: Optional[str] = None  # Excelente, Boa, Regular, Ruim
+    dieta_relato: Optional[str] = None
+
+    # Treino
+    treino_aderencia: Optional[int] = Field(default=None, ge=0, le=100)
+    treino_realizados: Optional[int] = None
+    treino_total_planejados: Optional[int] = None
+    treino_progressao_carga: Optional[bool] = None
+    treino_relato: Optional[str] = None
+
+    # Sono
+    sono_media_horas: Optional[float] = None
+    sono_qualidade: Optional[str] = None  # Excelente, Boa, Regular, Ruim
+    sono_relato: Optional[str] = None
+
+    # Bem-estar
+    bem_estar_sentimento: Optional[str] = None  # Muito bem, Bem, Normal, Mal
+    bem_estar_percepcoes: Optional[List[str]] = None
+    bem_estar_relato: Optional[str] = None
+
+    # Dificuldades
+    dificuldades: Optional[List[str]] = None
+    dificuldades_descricao: Optional[str] = None
+
+    # Metricas de treino da semana
+    calorias_semana: Optional[float] = None
+    carga_total_semana: Optional[float] = None
+    repeticoes_semana: Optional[int] = None
+
+class RelatoSemanalResponse(BaseModel):
+    id: str
+    student_id: str
+    personal_id: str
+    week_start: str
+    dieta_aderencia: Optional[int] = None
+    dieta_qualidade: Optional[str] = None
+    dieta_relato: Optional[str] = None
+    treino_aderencia: Optional[int] = None
+    treino_realizados: Optional[int] = None
+    treino_total_planejados: Optional[int] = None
+    treino_progressao_carga: Optional[bool] = None
+    treino_relato: Optional[str] = None
+    sono_media_horas: Optional[float] = None
+    sono_qualidade: Optional[str] = None
+    sono_relato: Optional[str] = None
+    bem_estar_sentimento: Optional[str] = None
+    bem_estar_percepcoes: Optional[List[str]] = None
+    bem_estar_relato: Optional[str] = None
+    dificuldades: Optional[List[str]] = None
+    dificuldades_descricao: Optional[str] = None
+    score_final: Optional[float] = None
+    score_dieta: Optional[float] = None
+    score_treino: Optional[float] = None
+    score_sono: Optional[float] = None
+    score_bem_estar: Optional[float] = None
+    calorias_semana: Optional[float] = None
+    carga_total_semana: Optional[float] = None
+    repeticoes_semana: Optional[int] = None
+    created_at: str
+    updated_at: str
+
+def calcular_score_relato(relato: dict) -> dict:
+    qualidade_map = {"Excelente": 100, "Boa": 75, "Regular": 50, "Ruim": 25}
+    sentimento_map = {"Muito bem": 100, "Bem": 75, "Normal": 50, "Mal": 25}
+
+    dieta_pct = relato.get("dieta_aderencia") or 0
+    score_dieta = round(dieta_pct * 0.40, 2)
+
+    treino_pct = relato.get("treino_aderencia") or 0
+    score_treino = round(treino_pct * 0.30, 2)
+
+    sono_q = relato.get("sono_qualidade") or ""
+    sono_pct = qualidade_map.get(sono_q, 0)
+    horas = relato.get("sono_media_horas") or 0
+    if horas >= 7:
+        horas_pct = 100
+    elif horas >= 6:
+        horas_pct = 80
+    elif horas >= 5:
+        horas_pct = 60
+    else:
+        horas_pct = 30
+    sono_combined = (sono_pct + horas_pct) / 2 if sono_pct else horas_pct
+    score_sono = round(sono_combined * 0.20, 2)
+
+    sentimento = relato.get("bem_estar_sentimento") or ""
+    bem_pct = sentimento_map.get(sentimento, 0)
+    score_bem_estar = round(bem_pct * 0.10, 2)
+
+    score_final = round(score_dieta + score_treino + score_sono + score_bem_estar, 1)
+
+    return {
+        "score_final": score_final,
+        "score_dieta": score_dieta,
+        "score_treino": score_treino,
+        "score_sono": score_sono,
+        "score_bem_estar": score_bem_estar,
+    }
+
+def _get_week_start(date: datetime) -> str:
+    monday = date - timedelta(days=date.weekday())
+    return monday.strftime("%Y-%m-%d")
+
+# ==================== RELATO SEMANAL ROUTES ====================
+
+@api_router.post("/relatos", response_model=RelatoSemanalResponse)
+async def criar_relato_semanal(
+    relato: RelatoSemanalCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Aluno cria ou atualiza relato da semana atual."""
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Apenas alunos podem criar relatos")
+
+    now = datetime.now(timezone.utc)
+    week_start = _get_week_start(now)
+    student_id = current_user["id"]
+    personal_id = current_user.get("personal_id", "")
+
+    existing = await db.relatos_semanais.find_one(
+        {"student_id": student_id, "week_start": week_start},
+        {"_id": 0}
+    )
+
+    relato_dict = relato.dict()
+    scores = calcular_score_relato(relato_dict)
+    now_iso = now.isoformat()
+
+    if existing:
+        update_data = {**relato_dict, **scores, "updated_at": now_iso}
+        await db.relatos_semanais.update_one(
+            {"student_id": student_id, "week_start": week_start},
+            {"$set": update_data}
+        )
+        updated = await db.relatos_semanais.find_one(
+            {"student_id": student_id, "week_start": week_start},
+            {"_id": 0}
+        )
+        return RelatoSemanalResponse(**updated)
+    else:
+        relato_id = str(uuid.uuid4())
+        doc = {
+            "id": relato_id,
+            "student_id": student_id,
+            "personal_id": personal_id,
+            "week_start": week_start,
+            **relato_dict,
+            **scores,
+            "created_at": now_iso,
+            "updated_at": now_iso,
+        }
+        await db.relatos_semanais.insert_one(doc)
+        created = await db.relatos_semanais.find_one({"id": relato_id}, {"_id": 0})
+        return RelatoSemanalResponse(**created)
+
+@api_router.get("/relatos/meu-relato-atual")
+async def get_meu_relato_atual(current_user: dict = Depends(get_current_user)):
+    """Retorna o relato da semana atual do aluno logado."""
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Apenas alunos")
+
+    now = datetime.now(timezone.utc)
+    week_start = _get_week_start(now)
+    relato = await db.relatos_semanais.find_one(
+        {"student_id": current_user["id"], "week_start": week_start},
+        {"_id": 0}
+    )
+    if not relato:
+        return None
+    return RelatoSemanalResponse(**relato)
+
+@api_router.get("/relatos/historico", response_model=List[RelatoSemanalResponse])
+async def get_meu_historico_relatos(
+    current_user: dict = Depends(get_current_user),
+    limit: int = Query(default=12, ge=1, le=52)
+):
+    """Retorna historico de relatos do aluno logado."""
+    if current_user.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Apenas alunos")
+
+    relatos = await db.relatos_semanais.find(
+        {"student_id": current_user["id"]},
+        {"_id": 0}
+    ).sort("week_start", -1).limit(limit).to_list(limit)
+
+    return [RelatoSemanalResponse(**r) for r in relatos]
+
+@api_router.get("/relatos/personal/overview")
+async def get_relatos_overview_personal(
+    current_user: dict = Depends(get_personal_user)
+):
+    """Overview de todos os alunos com metricas do relato semanal mais recente."""
+    personal_id = current_user["id"]
+
+    students_list = await db.users.find(
+        {"personal_id": personal_id, "role": "student"},
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "is_active": 1}
+    ).to_list(200)
+
+    now = datetime.now(timezone.utc)
+    current_week = _get_week_start(now)
+
+    result = []
+    for student in students_list:
+        sid = student["id"]
+
+        relatos = await db.relatos_semanais.find(
+            {"student_id": sid},
+            {"_id": 0}
+        ).sort("week_start", -1).limit(2).to_list(2)
+
+        latest = relatos[0] if relatos else None
+        previous = relatos[1] if len(relatos) > 1 else None
+
+        has_current_week = latest and latest.get("week_start") == current_week
+
+        def evo(curr, prev):
+            if curr is None or prev is None:
+                return None
+            if curr > prev:
+                return "up"
+            if curr < prev:
+                return "down"
+            return "stable"
+
+        cal_evo = evo(
+            latest.get("calorias_semana") if latest else None,
+            previous.get("calorias_semana") if previous else None
+        )
+        carga_evo = evo(
+            latest.get("carga_total_semana") if latest else None,
+            previous.get("carga_total_semana") if previous else None
+        )
+        reps_evo = evo(
+            latest.get("repeticoes_semana") if latest else None,
+            previous.get("repeticoes_semana") if previous else None
+        )
+
+        result.append({
+            "student_id": sid,
+            "student_name": student["name"],
+            "student_email": student.get("email", ""),
+            "is_active": student.get("is_active", True),
+            "has_relato_semana_atual": has_current_week,
+            "latest_relato": {
+                "id": latest["id"],
+                "week_start": latest.get("week_start"),
+                "score_final": latest.get("score_final"),
+                "calorias_semana": latest.get("calorias_semana"),
+                "carga_total_semana": latest.get("carga_total_semana"),
+                "repeticoes_semana": latest.get("repeticoes_semana"),
+                "dieta_aderencia": latest.get("dieta_aderencia"),
+                "treino_aderencia": latest.get("treino_aderencia"),
+            } if latest else None,
+            "evolution": {
+                "calorias": cal_evo,
+                "carga": carga_evo,
+                "repeticoes": reps_evo,
+            },
+        })
+
+    result.sort(key=lambda x: (0 if x["has_relato_semana_atual"] else 1, x["student_name"]))
+    return result
+
+@api_router.get("/relatos/personal/aluno/{student_id}", response_model=List[RelatoSemanalResponse])
+async def get_relatos_aluno_personal(
+    student_id: str,
+    current_user: dict = Depends(get_personal_user),
+    limit: int = Query(default=12, ge=1, le=52)
+):
+    """Personal ve todos os relatos de um aluno especifico."""
+    student = await db.users.find_one(
+        {"id": student_id, "personal_id": current_user["id"]},
+        {"_id": 0, "id": 1}
+    )
+    if not student:
+        raise HTTPException(status_code=404, detail="Aluno nao encontrado")
+
+    relatos = await db.relatos_semanais.find(
+        {"student_id": student_id},
+        {"_id": 0}
+    ).sort("week_start", -1).limit(limit).to_list(limit)
+
+    return [RelatoSemanalResponse(**r) for r in relatos]
+
 
 # Include router and add CORS
 app.include_router(api_router)

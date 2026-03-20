@@ -1,0 +1,280 @@
+{
+  "inserted_count": 37,
+  "categories": [
+    "ABDÔMEN",
+    "AERÓBIO",
+    "BÍCEPS",
+    "DORSAL",
+    "GLÚTEOS",
+    "INFERIORES",
+    "MOBILIDADE",
+    "OMBRO",
+    "PEITORAL",
+    "TRÍCEPS"
+  ],
+  "items": [
+    {
+      "name": "Abdominal Infra",
+      "category": "ABDÔMEN",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Abdominal Supra",
+      "category": "ABDÔMEN",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Abducao De Quadril No Cabo",
+      "category": "GLÚTEOS",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Afundo No Smith",
+      "category": "INFERIORES",
+      "source_files": [
+        "TREINO CSV - TESTE.csv/csv:latin1",
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Agachamento Livre",
+      "category": "INFERIORES",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8",
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Avanço Com Barra",
+      "category": "INFERIORES",
+      "source_files": [
+        "TREINO CSV - TESTE.csv/csv:latin1"
+      ]
+    },
+    {
+      "name": "Bulgaro Halteres",
+      "category": "GLÚTEOS",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Cross Over Polia Media",
+      "category": "PEITORAL",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Crucifixo Máquina",
+      "category": "PEITORAL",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Desenvolvimento Halter",
+      "category": "OMBRO",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Desenvolvimento Halteres Sentado",
+      "category": "OMBRO",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Elevacao Lateral Halteres",
+      "category": "OMBRO",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Elevação Panturrilha",
+      "category": "INFERIORES",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Esteira",
+      "category": "AERÓBIO",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Extensao De Quadril No Cabo",
+      "category": "GLÚTEOS",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Flexão De Braço",
+      "category": "PEITORAL",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Hip Thrust Barra",
+      "category": "GLÚTEOS",
+      "source_files": [
+        "TREINO CSV - TESTE.csv/csv:latin1",
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Hip Thrust Smith",
+      "category": "GLÚTEOS",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Leg Press 45 Pes Altos",
+      "category": "INFERIORES",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Mesa Flexora",
+      "category": "INFERIORES",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8",
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Panturrilha Em Pe",
+      "category": "INFERIORES",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Panturrilha Sentado",
+      "category": "INFERIORES",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Prancha Frontal",
+      "category": "ABDÔMEN",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Prancha Lateral",
+      "category": "ABDÔMEN",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Pulley Frente Pegada Aberta",
+      "category": "DORSAL",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Puxada Aberta",
+      "category": "DORSAL",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Remada Articulada Fechada",
+      "category": "DORSAL",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Remada Baixa Triangulo",
+      "category": "DORSAL",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Remada Máquina",
+      "category": "DORSAL",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Remada Unilateral Halter",
+      "category": "DORSAL",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Rosca Direta Halteres",
+      "category": "BÍCEPS",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Stiff Halteres",
+      "category": "GLÚTEOS",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Supino Inclinado Halter",
+      "category": "PEITORAL",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    },
+    {
+      "name": "Supino Inclinado Halteres",
+      "category": "PEITORAL",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "TESTE NOME EXERCICIO",
+      "category": "MOBILIDADE",
+      "source_files": [
+        "TREINO CSV - TESTE.csv/csv:latin1"
+      ]
+    },
+    {
+      "name": "Triceps Frances Halter",
+      "category": "TRÍCEPS",
+      "source_files": [
+        "envio_rogerio.csv/csv:utf-8"
+      ]
+    },
+    {
+      "name": "Tríceps Banco",
+      "category": "TRÍCEPS",
+      "source_files": [
+        "planilha_treino_completa.xlsx/Treino Semanal Completo"
+      ]
+    }
+  ]
+}

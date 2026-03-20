@@ -460,9 +460,15 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                     </a>
                   )}
                 </div>
+
+                {instructionText && (
+                  <div className="px-4 py-3 border-t border-blue-500/15 bg-[#070d1e]/80">
+                    <p className="text-zinc-300 text-sm leading-relaxed">{instructionText}</p>
+                  </div>
+                )}
               </div>
 
-              <p className="mt-4 text-zinc-300 text-lg leading-relaxed">{instructionText}</p>
+
 
               <div className="mt-4 rounded-2xl border border-blue-500/20 bg-black/25 p-3 sm:p-4">
                 <div className="grid grid-cols-12 gap-2 text-xs tracking-wide uppercase text-zinc-400 px-1 pb-2 border-b border-white/10">

@@ -219,7 +219,7 @@ export default function WorkoutsPage() {
     setUploadingVideo(true);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("exercise_name", videoUploadDialog.exerciseName);
+    formData.append("exercise_name", (videoUploadDialog.exerciseName || "").trim());
 
     try {
       const response = await api.post("/exercises/upload-video", formData, {

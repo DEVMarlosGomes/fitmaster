@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Button } from "./ui/button";
 import {
   Dialog,
   DialogContent,
@@ -7,7 +6,7 @@ import {
   DialogTitle,
   DialogBody,
 } from "./ui/dialog";
-import { Play, X, ExternalLink } from "lucide-react";
+import { Play, ExternalLink } from "lucide-react";
 
 export const ExerciseVideoModal = ({ isOpen, onClose, exerciseName, videoUrl }) => {
   // Convert YouTube URL to embed format
@@ -32,11 +31,8 @@ export const ExerciseVideoModal = ({ isOpen, onClose, exerciseName, videoUrl }) 
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="bg-card border-border max-w-3xl p-0 overflow-hidden">
         <DialogHeader className="p-4 pb-2">
-          <DialogTitle className="text-lg font-bold uppercase flex items-center justify-between">
+          <DialogTitle className="text-lg font-bold uppercase">
             <span>{exerciseName}</span>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-5 h-5" />
-            </Button>
           </DialogTitle>
         </DialogHeader>
         <DialogBody className="p-0">

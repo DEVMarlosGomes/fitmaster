@@ -250,6 +250,7 @@ export default function CheckinsPage() {
   const [sendingReminders, setSendingReminders] = useState(false);
   const [pendingFeedbackRequest, setPendingFeedbackRequest] = useState(null);
   const [requestingFeedback, setRequestingFeedback] = useState(false);
+  const [updatingStudentStatus, setUpdatingStudentStatus] = useState(false);
   const todayISO = useMemo(() => toLocalDateISO(), []);
 
   useEffect(() => {
@@ -276,18 +277,25 @@ export default function CheckinsPage() {
   const loadPendingFeedbackRequest = async () => {
     try {
       const response = await api.get("/checkins/pending-feedback-request");
+      const request = response.data?.has_pending ? response.data.request : null;
       if (response.data?.has_pending) {
         setPendingFeedbackRequest(response.data.request);
       } else {
         setPendingFeedbackRequest(null);
       }
+      return request;
     } catch (error) {
       console.log("Error loading pending feedback request");
+      return null;
     }
   };
 
   const handleRequestFeedback = async () => {
     if (!selectedStudent) return;
+    if (selectedStudentData && selectedStudentData.is_active === false) {
+      toast.error("Aluno inativo. Ative o aluno para solicitar devolutiva.");
+      return;
+    }
     setRequestingFeedback(true);
     try {
       await api.post(`/checkins/request-feedback/${selectedStudent}`);
@@ -300,6 +308,11 @@ export default function CheckinsPage() {
   };
 
   const latestFeedbackSubmission = feedbackSubmissions[0] || null;
+  const selectedStudentData = useMemo(
+    () => students.find((student) => student.id === selectedStudent) || null,
+    [students, selectedStudent]
+  );
+  const isSelectedStudentActive = selectedStudentData?.is_active !== false;
   const activeFeedbackSubmission =
     feedbackSubmissions.find((submission) => submission.id === activeSubmissionId) ||
     latestFeedbackSubmission ||
@@ -438,6 +451,7 @@ export default function CheckinsPage() {
       const today = new Date();
       const rows = await Promise.all(
         students.map(async (student) => {
+          const studentIsActive = student.is_active !== false;
           let plan = null;
           try {
             const planResponse = await api.get(`/checkins/feedback-plan/${student.id}`);
@@ -458,14 +472,19 @@ export default function CheckinsPage() {
 
           const todaySubmission = studentSubmissions.find((item) => item.reference_date === todayISO);
           const latestSubmission = studentSubmissions[0] || null;
-          const expectedToday = isFeedbackDay(plan, today);
+          const hasActivePlan = Boolean(studentIsActive && plan?.active);
+          const expectedToday = hasActivePlan ? isFeedbackDay(plan, today) : false;
           const mode = plan?.mode || "none";
-          let status = "inativo";
+          let status = "sem_plano";
 
-          if (plan?.active) {
+          if (!studentIsActive) {
+            status = "inativo";
+          } else if (hasActivePlan) {
             status = expectedToday
               ? (todaySubmission ? "respondido" : "pendente")
               : "aguardando";
+          } else if (plan && plan.active === false) {
+            status = "plano_inativo";
           }
 
           return {
@@ -474,7 +493,7 @@ export default function CheckinsPage() {
             mode,
             status,
             expectedToday,
-            pendingToday: Boolean(plan?.active && expectedToday && !todaySubmission),
+            pendingToday: Boolean(hasActivePlan && expectedToday && !todaySubmission),
             latestSubmission,
             averageScore: averageScoreFromItems((todaySubmission || latestSubmission)?.items || []),
           };
@@ -485,7 +504,7 @@ export default function CheckinsPage() {
         overviewFilter === "all" ? true : row.mode === overviewFilter
       ));
 
-      const order = { pendente: 0, respondido: 1, aguardando: 2, inativo: 3 };
+      const order = { pendente: 0, respondido: 1, aguardando: 2, sem_plano: 3, plano_inativo: 4, inativo: 5 };
       filteredRows.sort((a, b) => {
         if (order[a.status] !== order[b.status]) {
           return order[a.status] - order[b.status];
@@ -499,6 +518,32 @@ export default function CheckinsPage() {
       setOverviewRows([]);
     } finally {
       setLoadingOverview(false);
+    }
+  };
+
+  const handleToggleStudentActive = async () => {
+    if (!selectedStudentData) return;
+
+    const nextIsActive = !isSelectedStudentActive;
+    setUpdatingStudentStatus(true);
+    try {
+      await api.patch(`/students/${selectedStudentData.id}/active`, { is_active: nextIsActive });
+      setStudents((previous) =>
+        previous.map((student) =>
+          student.id === selectedStudentData.id
+            ? { ...student, is_active: nextIsActive }
+            : student
+        )
+      );
+      toast.success(nextIsActive ? "Aluno ativado com sucesso." : "Aluno inativado com sucesso.");
+      if (isPersonal) {
+        loadOverviewRows();
+      }
+    } catch (error) {
+      const message = error?.response?.data?.detail || "Erro ao atualizar status do aluno";
+      toast.error(message);
+    } finally {
+      setUpdatingStudentStatus(false);
     }
   };
 
@@ -578,8 +623,13 @@ export default function CheckinsPage() {
   };
 
   const handleSubmitStudentFeedback = async () => {
-    if ((!feedbackPlan && !pendingFeedbackRequest) || (!isTodayFeedbackDay && !pendingFeedbackRequest)) {
-      toast.error("Hoje nao esta configurado para envio de relato.");
+    let activePendingRequest = pendingFeedbackRequest;
+    if (!isPersonal && !activePendingRequest) {
+      activePendingRequest = await loadPendingFeedbackRequest();
+    }
+
+    if (!isPersonal && !activePendingRequest) {
+      toast.error("Nenhuma solicitacao de devolutiva pendente.");
       return;
     }
 
@@ -623,7 +673,7 @@ export default function CheckinsPage() {
       }, {});
 
       await api.post("/checkins/feedback-submissions", {
-        reference_date: todayISO,
+        reference_date: toLocalDateISO(),
         scores: scoresPayload,
         measurements: {
           fasting_weight: fastingWeight,
@@ -636,6 +686,9 @@ export default function CheckinsPage() {
       });
 
       setStudentPhotoFiles(DEFAULT_PHOTO_FILES);
+      if (!isPersonal) {
+        setPendingFeedbackRequest(null);
+      }
       toast.success("Relato enviado.");
       loadFeedbackSubmissions(selectedStudent);
     } catch (error) {
@@ -695,11 +748,6 @@ export default function CheckinsPage() {
     });
     return map;
   }, [latestFeedbackSubmission]);
-
-  const isTodayFeedbackDay = useMemo(
-    () => isFeedbackDay(feedbackPlan, new Date()),
-    [feedbackPlan]
-  );
 
   const feedbackPlanSummary = useMemo(() => {
     if (!feedbackPlan) return "Sem planejamento de feedback definido.";
@@ -769,16 +817,45 @@ export default function CheckinsPage() {
           </div>
 
           {isPersonal && (
-            <Select value={selectedStudent} onValueChange={setSelectedStudent}>
-              <SelectTrigger className="w-[220px] bg-secondary/50 border-white/10">
-                <SelectValue placeholder="Selecione o aluno" />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                {students.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-wrap items-center gap-2">
+              <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+                <SelectTrigger className="w-[220px] bg-secondary/50 border-white/10">
+                  <SelectValue placeholder="Selecione o aluno" />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  {students.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedStudentData && (
+                <>
+                  <Badge
+                    variant="outline"
+                    className={
+                      isSelectedStudentActive
+                        ? "border-emerald-400/40 text-emerald-300"
+                        : "border-red-400/40 text-red-300"
+                    }
+                  >
+                    {isSelectedStudentActive ? "Ativo" : "Inativo"}
+                  </Badge>
+                  <Button
+                    variant={isSelectedStudentActive ? "outline" : "default"}
+                    onClick={handleToggleStudentActive}
+                    disabled={updatingStudentStatus}
+                    className="gap-2"
+                    data-testid="toggle-student-active-btn"
+                  >
+                    {updatingStudentStatus
+                      ? "Atualizando..."
+                      : isSelectedStudentActive
+                      ? "Inativar Aluno"
+                      : "Ativar Aluno"}
+                  </Button>
+                </>
+              )}
+            </div>
           )}
         </div>
 
@@ -873,6 +950,10 @@ export default function CheckinsPage() {
                               ? "border-amber-400/40 text-amber-300"
                               : row.status === "aguardando"
                               ? "border-blue-400/40 text-blue-300"
+                              : row.status === "sem_plano"
+                              ? "border-slate-400/40 text-slate-300"
+                              : row.status === "plano_inativo"
+                              ? "border-orange-400/40 text-orange-300"
                               : "border-white/20 text-muted-foreground"
                           }
                         >
@@ -882,6 +963,10 @@ export default function CheckinsPage() {
                             ? "Pendente"
                             : row.status === "aguardando"
                             ? "Aguardando data"
+                            : row.status === "sem_plano"
+                            ? "Sem plano"
+                            : row.status === "plano_inativo"
+                            ? "Plano inativo"
                             : "Inativo"}
                         </Badge>
                       </div>
@@ -1084,7 +1169,9 @@ export default function CheckinsPage() {
           </Card>
         )}
 
-        <Card className="bg-card border-border">
+        {(isPersonal || pendingFeedbackRequest) && (
+          <>
+            <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-xl font-bold uppercase flex items-center gap-2">
               <MessageSquareText className="w-5 h-5 text-primary" />
@@ -1098,7 +1185,7 @@ export default function CheckinsPage() {
                 <Button
                   variant="outline"
                   onClick={handleRequestFeedback}
-                  disabled={requestingFeedback}
+                  disabled={requestingFeedback || !isSelectedStudentActive}
                   className="gap-2 border-amber-400/50 text-amber-400 hover:bg-amber-400/10"
                   data-testid="request-feedback-btn"
                 >
@@ -1132,12 +1219,11 @@ export default function CheckinsPage() {
               </div>
             )}
 
-            <div className="rounded-lg bg-secondary/30 p-3 text-sm">
-              <p className="font-semibold">Planejamento atual</p>
-              <p className="text-muted-foreground mt-1">{feedbackPlanSummary}</p>
-              {!isPersonal && (
+            {isPersonal && (
+              <div className="rounded-lg bg-secondary/30 p-3 text-sm">
+                <p className="font-semibold">Planejamento atual</p>
+                <p className="text-muted-foreground mt-1">{feedbackPlanSummary}</p>
                 <div className="text-xs text-muted-foreground mt-2">
-                  <p>{isTodayFeedbackDay ? "Hoje e dia de relato." : "Hoje nao e dia de relato."}</p>
                   {upcomingPlanDates.length > 0 && (
                     <p className="mt-1">
                       Proximas datas:{" "}
@@ -1147,8 +1233,8 @@ export default function CheckinsPage() {
                     </p>
                   )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {loadingFeedbackSubmissions ? (
               <div className="flex justify-center py-8">
@@ -1355,7 +1441,7 @@ export default function CheckinsPage() {
 
                 <Button
                   onClick={handleSubmitStudentFeedback}
-                  disabled={submittingStudentFeedback || (!feedbackPlan && !pendingFeedbackRequest) || (!isTodayFeedbackDay && !pendingFeedbackRequest)}
+                  disabled={submittingStudentFeedback}
                   className="gap-2"
                   data-testid="submit-student-feedback-btn"
                 >
@@ -1368,53 +1454,55 @@ export default function CheckinsPage() {
               </div>
             )}
           </CardContent>
-        </Card>
+            </Card>
 
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold uppercase flex items-center gap-2">
-              <ClipboardList className="w-5 h-5 text-cyan-400" />
-              Historico de Relatos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {feedbackSubmissions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhum relato registrado.</p>
-            ) : (
-              <div className="space-y-2">
-                {feedbackSubmissions.map((submission) => (
-                  <button
-                    key={submission.id}
-                    type="button"
-                    onClick={() => setActiveSubmissionId(submission.id)}
-                    className={`w-full rounded-lg border p-3 text-left ${
-                      activeSubmissionId === submission.id
-                        ? "border-primary bg-primary/10"
-                        : "border-border bg-secondary/20 hover:bg-secondary/30"
-                    }`}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-semibold">{new Date(`${submission.reference_date}T00:00:00`).toLocaleDateString("pt-BR")}</p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="border-white/20">
-                          {typeof averageScoreFromItems(submission.items) === "number"
-                            ? `Media ${averageScoreFromItems(submission.items)}%`
-                            : "Sem media"}
-                        </Badge>
-                        <Badge variant="outline" className="border-white/20">
-                          Fotos {Object.values(submission.photos || {}).filter(Boolean).length}/3
-                        </Badge>
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Respondidos: {submission.answered_items} | Devolutivas: {submission.replied_items}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="text-xl font-bold uppercase flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-cyan-400" />
+                  Historico de Relatos
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {feedbackSubmissions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum relato registrado.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {feedbackSubmissions.map((submission) => (
+                      <button
+                        key={submission.id}
+                        type="button"
+                        onClick={() => setActiveSubmissionId(submission.id)}
+                        className={`w-full rounded-lg border p-3 text-left ${
+                          activeSubmissionId === submission.id
+                            ? "border-primary bg-primary/10"
+                            : "border-border bg-secondary/20 hover:bg-secondary/30"
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold">{new Date(`${submission.reference_date}T00:00:00`).toLocaleDateString("pt-BR")}</p>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="border-white/20">
+                              {typeof averageScoreFromItems(submission.items) === "number"
+                                ? `Media ${averageScoreFromItems(submission.items)}%`
+                                : "Sem media"}
+                            </Badge>
+                            <Badge variant="outline" className="border-white/20">
+                              Fotos {Object.values(submission.photos || {}).filter(Boolean).length}/3
+                            </Badge>
+                          </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Respondidos: {submission.answered_items} | Devolutivas: {submission.replied_items}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </>
+        )}
 
         {/* Summary */}
         {frequency && (
