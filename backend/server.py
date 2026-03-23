@@ -487,6 +487,7 @@ class WorkoutResponse(BaseModel):
     personal_id: str
     routine_id: Optional[str] = None
     days: List[dict]
+    aerobic_pdf_url: Optional[str] = None
     created_at: str
     updated_at: str
     version: int
@@ -2694,6 +2695,7 @@ async def create_workout(workout: WorkoutCreate, personal: dict = Depends(get_pe
         "personal_id": personal["id"],
         "routine_id": workout.routine_id,
         "days": [d.model_dump() for d in workout.days],
+        "aerobic_pdf_url": None,
         "created_at": now,
         "updated_at": now,
         "version": 1
@@ -2708,6 +2710,7 @@ async def create_workout(workout: WorkoutCreate, personal: dict = Depends(get_pe
         personal_id=personal["id"],
         routine_id=workout.routine_id,
         days=workout_doc["days"],
+        aerobic_pdf_url=workout_doc.get("aerobic_pdf_url"),
         created_at=now,
         updated_at=now,
         version=1
@@ -2743,6 +2746,7 @@ async def list_workouts(
                 personal_id=w["personal_id"],
                 routine_id=w.get("routine_id"),
                 days=w.get("days", []),
+                aerobic_pdf_url=w.get("aerobic_pdf_url"),
                 created_at=w["created_at"],
                 updated_at=w.get("updated_at", w["created_at"]),
                 version=w.get("version", 1)
@@ -2773,6 +2777,7 @@ async def get_workout(workout_id: str, current_user: dict = Depends(get_current_
         personal_id=workout["personal_id"],
         routine_id=workout.get("routine_id"),
         days=workout["days"],
+        aerobic_pdf_url=workout.get("aerobic_pdf_url"),
         created_at=workout["created_at"],
         updated_at=workout["updated_at"],
         version=workout.get("version", 1)
@@ -4447,6 +4452,15 @@ class RelatoSemanalCreate(BaseModel):
     carga_total_semana: Optional[float] = None
     repeticoes_semana: Optional[int] = None
 
+    # Check visual e medidas obrigatorias
+    peso_atual: Optional[float] = Field(default=None, gt=0)
+    quadril_cm: Optional[float] = Field(default=None, gt=0)
+    abdomen_cm: Optional[float] = Field(default=None, gt=0)
+    cintura_cm: Optional[float] = Field(default=None, gt=0)
+    foto_frente_url: Optional[str] = None
+    foto_lateral_url: Optional[str] = None
+    foto_costas_url: Optional[str] = None
+
 class RelatoSemanalResponse(BaseModel):
     id: str
     student_id: str
@@ -4476,6 +4490,13 @@ class RelatoSemanalResponse(BaseModel):
     calorias_semana: Optional[float] = None
     carga_total_semana: Optional[float] = None
     repeticoes_semana: Optional[int] = None
+    peso_atual: Optional[float] = None
+    quadril_cm: Optional[float] = None
+    abdomen_cm: Optional[float] = None
+    cintura_cm: Optional[float] = None
+    foto_frente_url: Optional[str] = None
+    foto_lateral_url: Optional[str] = None
+    foto_costas_url: Optional[str] = None
     created_at: str
     updated_at: str
 
@@ -4521,6 +4542,21 @@ def _get_week_start(date: datetime) -> str:
     monday = date - timedelta(days=date.weekday())
     return monday.strftime("%Y-%m-%d")
 
+def validar_relato_check_visual(relato: dict) -> None:
+    required_measurements = ("peso_atual", "quadril_cm", "abdomen_cm", "cintura_cm")
+    if any(relato.get(field) is None for field in required_measurements):
+        raise HTTPException(
+            status_code=400,
+            detail="Peso, quadril, abdomen e cintura sao obrigatorios no relato semanal"
+        )
+
+    required_photos = ("foto_frente_url", "foto_lateral_url", "foto_costas_url")
+    if any(not str(relato.get(field) or "").strip() for field in required_photos):
+        raise HTTPException(
+            status_code=400,
+            detail="Fotos de frente, lateral e costas sao obrigatorias no relato semanal"
+        )
+
 # ==================== RELATO SEMANAL ROUTES ====================
 
 @api_router.post("/relatos", response_model=RelatoSemanalResponse)
@@ -4543,6 +4579,7 @@ async def criar_relato_semanal(
     )
 
     relato_dict = relato.dict()
+    validar_relato_check_visual(relato_dict)
     scores = calcular_score_relato(relato_dict)
     now_iso = now.isoformat()
 

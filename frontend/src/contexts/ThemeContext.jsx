@@ -13,13 +13,18 @@ export const useTheme = () => {
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem("theme");
-    return saved || "dark";
+    if (saved === "light" || saved === "dark") {
+      return saved;
+    }
+    return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
   });
 
   useEffect(() => {
     localStorage.setItem("theme", theme);
     document.documentElement.classList.remove("light", "dark");
     document.documentElement.classList.add(theme);
+    document.documentElement.dataset.theme = theme;
+    document.documentElement.style.colorScheme = theme;
   }, [theme]);
 
   const toggleTheme = () => {

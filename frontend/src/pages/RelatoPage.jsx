@@ -1,14 +1,12 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { MainLayout } from "../components/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import {
   PersonalRequestedFeedbackPanel,
-  StudentRequestedFeedbackPanel,
 } from "../components/RelatoFeedbackPanel";
 import {
   TrendingUp,
@@ -29,8 +27,12 @@ import {
   Zap,
   RefreshCw,
   Star,
+  Camera,
+  Ruler,
+  Scale,
 } from "lucide-react";
 import api from "../lib/api";
+import { BACKEND_URL } from "../lib/backend";
 import { toast } from "sonner";
 
 // ==================== HELPERS ====================
@@ -95,6 +97,32 @@ const scoreLabel = (score) => {
   return "Precisa Melhorar";
 };
 
+const RELATO_PHOTO_FIELDS = [
+  { key: "foto_frente_url", label: "Foto de frente" },
+  { key: "foto_lateral_url", label: "Foto lateral" },
+  { key: "foto_costas_url", label: "Foto de costas" },
+];
+
+const EMPTY_PHOTO_FILES = {
+  foto_frente_url: null,
+  foto_lateral_url: null,
+  foto_costas_url: null,
+};
+
+const parsePositiveNumber = (value) => {
+  const normalized = String(value || "").replace(",", ".");
+  const numberValue = Number(normalized);
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return null;
+  return numberValue;
+};
+
+const resolveUploadUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/uploads/")) return `${BACKEND_URL}/api${url}`;
+  return `${BACKEND_URL}${url}`;
+};
+
 // ==================== STUDENT FORM ====================
 const EMPTY_FORM = {
   dieta_aderencia: "",
@@ -116,6 +144,13 @@ const EMPTY_FORM = {
   calorias_semana: "",
   carga_total_semana: "",
   repeticoes_semana: "",
+  peso_atual: "",
+  quadril_cm: "",
+  abdomen_cm: "",
+  cintura_cm: "",
+  foto_frente_url: "",
+  foto_lateral_url: "",
+  foto_costas_url: "",
 };
 
 function OptionButton({ label, selected, onClick }) {
@@ -269,6 +304,8 @@ function StudentRelatoForm() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [photoFiles, setPhotoFiles] = useState(EMPTY_PHOTO_FILES);
+  const [uploadingPhotoKey, setUploadingPhotoKey] = useState("");
   const [saved, setSaved] = useState(false);
   const weekStart = getWeekStart();
 
@@ -302,7 +339,15 @@ function StudentRelatoForm() {
           calorias_semana: r.calorias_semana ?? "",
           carga_total_semana: r.carga_total_semana ?? "",
           repeticoes_semana: r.repeticoes_semana ?? "",
+          peso_atual: r.peso_atual ?? "",
+          quadril_cm: r.quadril_cm ?? "",
+          abdomen_cm: r.abdomen_cm ?? "",
+          cintura_cm: r.cintura_cm ?? "",
+          foto_frente_url: r.foto_frente_url ?? "",
+          foto_lateral_url: r.foto_lateral_url ?? "",
+          foto_costas_url: r.foto_costas_url ?? "",
         });
+        setPhotoFiles(EMPTY_PHOTO_FILES);
         setSaved(true);
       }
     } catch {
@@ -322,9 +367,46 @@ function StudentRelatoForm() {
     });
   };
 
+  const uploadRelatoPhoto = async (file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.post("/checkins/feedback-submissions/upload-photo", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data?.photo_url;
+  };
+
   const handleSubmit = async () => {
+    const pesoAtual = parsePositiveNumber(form.peso_atual);
+    const quadrilCm = parsePositiveNumber(form.quadril_cm);
+    const abdomenCm = parsePositiveNumber(form.abdomen_cm);
+    const cinturaCm = parsePositiveNumber(form.cintura_cm);
+
+    if (!pesoAtual || !quadrilCm || !abdomenCm || !cinturaCm) {
+      toast.error("Peso, quadril, abdomen e cintura sao obrigatorios.");
+      return;
+    }
+
     setSubmitting(true);
     try {
+      const uploadedPhotos = {
+        foto_frente_url: form.foto_frente_url,
+        foto_lateral_url: form.foto_lateral_url,
+        foto_costas_url: form.foto_costas_url,
+      };
+
+      for (const photoField of RELATO_PHOTO_FIELDS) {
+        const selectedFile = photoFiles[photoField.key];
+        if (!selectedFile) continue;
+        setUploadingPhotoKey(photoField.key);
+        uploadedPhotos[photoField.key] = await uploadRelatoPhoto(selectedFile);
+      }
+
+      if (RELATO_PHOTO_FIELDS.some((photoField) => !uploadedPhotos[photoField.key])) {
+        toast.error("Fotos de frente, lateral e costas sao obrigatorias.");
+        return;
+      }
+
       const payload = {
         ...form,
         dieta_aderencia: form.dieta_aderencia !== "" ? Number(form.dieta_aderencia) : null,
@@ -338,13 +420,21 @@ function StudentRelatoForm() {
           form.carga_total_semana !== "" ? Number(form.carga_total_semana) : null,
         repeticoes_semana:
           form.repeticoes_semana !== "" ? Number(form.repeticoes_semana) : null,
+        peso_atual: pesoAtual,
+        quadril_cm: quadrilCm,
+        abdomen_cm: abdomenCm,
+        cintura_cm: cinturaCm,
+        ...uploadedPhotos,
       };
       await api.post("/relatos", payload);
+      setForm((prev) => ({ ...prev, ...uploadedPhotos }));
+      setPhotoFiles(EMPTY_PHOTO_FILES);
       setSaved(true);
       toast.success("Relato semanal enviado! 🔥");
     } catch (err) {
       toast.error(err.response?.data?.detail || "Erro ao enviar relato");
     } finally {
+      setUploadingPhotoKey("");
       setSubmitting(false);
     }
   };
@@ -629,6 +719,123 @@ function StudentRelatoForm() {
           </div>
         </div>
 
+        {/* 6. Check visual e medidas */}
+        <div className="bento-card rounded-2xl p-5 space-y-5">
+          <SectionHeader icon={Camera} label="Check Visual e Medidas" number="6" />
+
+          <div className="rounded-[1.35rem] border border-primary/20 bg-gradient-to-r from-primary/10 via-sky-400/6 to-transparent p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-sm font-bold text-foreground">
+                  Finalize o relato com medidas atuais e fotos de progresso
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Peso, quadril, abdomen, cintura e fotos de frente, lateral e costas sao obrigatorios.
+                </p>
+              </div>
+              <Badge className="border-primary/30 bg-primary/15 text-primary">Obrigatorio</Badge>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { key: "peso_atual", label: "Peso atual", unit: "kg", icon: Scale, placeholder: "Ex: 72.4" },
+              { key: "quadril_cm", label: "Quadril", unit: "cm", icon: Ruler, placeholder: "Ex: 98" },
+              { key: "abdomen_cm", label: "Abdomen", unit: "cm", icon: Ruler, placeholder: "Ex: 84" },
+              { key: "cintura_cm", label: "Cintura", unit: "cm", icon: Ruler, placeholder: "Ex: 76" },
+            ].map((field) => {
+              const Icon = field.icon;
+              return (
+                <div
+                  key={field.key}
+                  className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4 shadow-[0_18px_45px_-35px_rgba(14,165,233,0.7)]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-[1rem] border border-primary/20 bg-primary/10 p-2.5">
+                      <Icon className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{field.label}</p>
+                      <p className="text-xs text-muted-foreground">Obrigatorio</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={0}
+                      step={0.1}
+                      value={form[field.key]}
+                      onChange={(event) => setForm((prev) => ({ ...prev, [field.key]: event.target.value }))}
+                      placeholder={field.placeholder}
+                      className="w-full rounded-xl border border-white/10 bg-background/60 px-4 py-3 text-lg font-bold text-foreground outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/20"
+                    />
+                    <span className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-muted-foreground">
+                      {field.unit}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="grid gap-3 lg:grid-cols-3">
+            {RELATO_PHOTO_FIELDS.map((field) => (
+              <div
+                key={field.key}
+                className="rounded-[1.25rem] border border-white/10 bg-white/5 p-4 shadow-[0_18px_45px_-35px_rgba(14,165,233,0.7)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">{field.label}</p>
+                    <p className="mt-1 text-sm font-semibold text-foreground">Envio obrigatorio</p>
+                  </div>
+                  <div className="rounded-[1rem] border border-primary/20 bg-primary/10 p-2.5">
+                    <Camera className="h-4 w-4 text-primary" />
+                  </div>
+                </div>
+
+                <div className="mt-4 overflow-hidden rounded-[1rem] border border-dashed border-white/15 bg-background/45 px-3 py-6 text-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) =>
+                      setPhotoFiles((prev) => ({
+                        ...prev,
+                        [field.key]: event.target.files?.[0] || null,
+                      }))
+                    }
+                    className="w-full cursor-pointer text-sm text-muted-foreground file:mr-3 file:rounded-full file:border-0 file:bg-primary/15 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-primary"
+                  />
+
+                  {photoFiles[field.key] ? (
+                    <p className="mt-3 truncate text-xs text-primary">{photoFiles[field.key].name}</p>
+                  ) : form[field.key] ? (
+                    <a
+                      href={resolveUploadUrl(form[field.key])}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex text-xs font-semibold text-primary underline underline-offset-4"
+                    >
+                      Visualizar foto atual
+                    </a>
+                  ) : (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Envie uma imagem nítida para registrar sua evolução.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {uploadingPhotoKey && (
+            <p className="text-sm text-primary">
+              Enviando {RELATO_PHOTO_FIELDS.find((field) => field.key === uploadingPhotoKey)?.label || "foto"}...
+            </p>
+          )}
+        </div>
+
         {/* Submit */}
         <Button
           onClick={handleSubmit}
@@ -638,7 +845,9 @@ function StudentRelatoForm() {
           {submitting ? (
             <>
               <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-              Enviando...
+              {uploadingPhotoKey
+                ? `Enviando ${RELATO_PHOTO_FIELDS.find((field) => field.key === uploadingPhotoKey)?.label || "foto"}...`
+                : "Enviando..."}
             </>
           ) : (
             <>
@@ -1137,6 +1346,67 @@ function RelatoDetailView({ relato: r }) {
         </div>
       )}
 
+      {/* Check visual e medidas */}
+      {(r.peso_atual || r.quadril_cm || r.abdomen_cm || r.cintura_cm || r.foto_frente_url || r.foto_lateral_url || r.foto_costas_url) && (
+        <div className="bento-card rounded-xl p-4">
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold">Check visual e medidas</p>
+              <p className="text-xs text-muted-foreground">Atualizacao corporal enviada no fechamento do relato</p>
+            </div>
+            <Badge variant="outline" className="w-fit border-primary/30 text-primary">
+              Obrigatorio
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
+            {[
+              { label: "Peso", value: r.peso_atual ? `${r.peso_atual} kg` : "-", icon: Scale },
+              { label: "Quadril", value: r.quadril_cm ? `${r.quadril_cm} cm` : "-", icon: Ruler },
+              { label: "Abdomen", value: r.abdomen_cm ? `${r.abdomen_cm} cm` : "-", icon: Ruler },
+              { label: "Cintura", value: r.cintura_cm ? `${r.cintura_cm} cm` : "-", icon: Ruler },
+            ].map((item) => {
+              const Icon = item.icon;
+              return (
+                <div key={item.label} className="rounded-xl border border-white/10 bg-white/5 p-3">
+                  <Icon className="mx-auto mb-2 h-4 w-4 text-primary" />
+                  <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground">{item.label}</p>
+                  <p className="mt-1 text-sm font-black">{item.value}</p>
+                </div>
+              );
+            })}
+          </div>
+
+          {(r.foto_frente_url || r.foto_lateral_url || r.foto_costas_url) && (
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {[
+                { key: "foto_frente_url", label: "Foto de frente" },
+                { key: "foto_lateral_url", label: "Foto lateral" },
+                { key: "foto_costas_url", label: "Foto de costas" },
+              ].map((photo) => (
+                <a
+                  key={photo.key}
+                  href={resolveUploadUrl(r[photo.key])}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`rounded-xl border p-4 transition-colors ${
+                    r[photo.key]
+                      ? "border-primary/20 bg-primary/8 hover:border-primary/40"
+                      : "pointer-events-none border-white/10 bg-white/5 opacity-50"
+                  }`}
+                >
+                  <Camera className="mb-2 h-4 w-4 text-primary" />
+                  <p className="text-sm font-semibold">{photo.label}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {r[photo.key] ? "Abrir imagem" : "Sem imagem enviada"}
+                  </p>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Training metrics */}
       <div className="bento-card rounded-xl p-4">
         <p className="text-sm font-bold mb-3">📊 Métricas Semanais de Treino</p>
@@ -1197,10 +1467,7 @@ export default function RelatoPage() {
         {isPersonal ? (
           <PersonalOverview />
         ) : (
-          <div className="space-y-6">
-            <StudentRequestedFeedbackPanel />
-            <StudentRelatoForm />
-          </div>
+          <StudentRelatoForm />
         )}
       </div>
     </MainLayout>

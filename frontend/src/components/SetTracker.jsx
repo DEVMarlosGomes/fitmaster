@@ -318,24 +318,26 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
       : "");
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.24),_transparent_40%),radial-gradient(circle_at_bottom,_rgba(56,189,248,0.14),_transparent_45%)] bg-[#030610]/95 backdrop-blur-md">
-      <div className="min-h-full flex items-start justify-center p-2 sm:p-6">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.22),_transparent_36%),radial-gradient(circle_at_bottom,_rgba(34,211,238,0.14),_transparent_46%)] bg-background/90 backdrop-blur-xl">
+      <div className="flex min-h-full items-start justify-center p-2 sm:p-5 lg:p-6">
         <Card
-          className="w-full max-w-3xl bg-gradient-to-b from-[#0b1228] via-[#070d1e] to-[#040814] border border-blue-500/25 rounded-[28px] shadow-[0_0_65px_rgba(37,99,235,0.22)] overflow-hidden"
+          className="premium-panel-strong w-full max-w-4xl overflow-hidden rounded-[2rem] border-border/70 shadow-[0_30px_90px_-40px_rgba(15,23,42,0.82)]"
           data-testid="set-tracker-modal"
         >
-          <div className="px-4 sm:px-6 pt-5 pb-4 border-b border-blue-500/20">
+          <div className="border-b border-border/60 bg-gradient-to-r from-primary/12 via-background/82 to-blue-500/10 px-4 pb-4 pt-5 sm:px-6">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-zinc-400 text-sm">Treino em andamento</p>
-                <h2 className="text-xl sm:text-3xl font-black tracking-tight truncate text-white">{workoutHeadline}</h2>
+                <p className="label-uppercase text-primary">Treino em andamento</p>
+                <h2 className="gradient-text truncate text-xl font-black tracking-[-0.05em] sm:text-3xl">
+                  {workoutHeadline}
+                </h2>
               </div>
 
               <div className="flex items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-200"
+                  className="h-10 w-10 rounded-[1rem] border border-border/60 bg-background/55 text-muted-foreground hover:bg-secondary/55 hover:text-foreground"
                   onClick={() => setSoundEnabled(!soundEnabled)}
                   data-testid="toggle-sound"
                 >
@@ -344,7 +346,7 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-200"
+                  className="h-10 w-10 rounded-[1rem] border border-border/60 bg-background/55 text-muted-foreground hover:bg-secondary/55 hover:text-foreground"
                   onClick={resetTimer}
                   data-testid="reset-timer"
                 >
@@ -353,7 +355,7 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-9 w-9 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-200"
+                  className="h-10 w-10 rounded-[1rem] border border-border/60 bg-background/55 text-muted-foreground hover:bg-secondary/55 hover:text-foreground"
                   onClick={onClose}
                   data-testid="close-set-tracker"
                 >
@@ -362,47 +364,52 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
               </div>
             </div>
 
-            <div className="mt-4 flex items-center justify-between text-sm">
-              <div className="flex items-center gap-2 text-zinc-300">
-                <Clock className="w-4 h-4 text-zinc-400" />
+            <div className="mt-4 grid gap-2 text-sm sm:grid-cols-3">
+              <div className="premium-soft flex items-center gap-2 rounded-[1rem] px-3 py-2 text-muted-foreground">
+                <Clock className="h-4 w-4 text-primary" />
                 {completedSets}/{sets.length}
               </div>
-              <div className="flex items-center gap-2 text-zinc-300">
-                <RotateCcw className="w-4 h-4 text-zinc-400" />
+              <div className="premium-soft flex items-center gap-2 rounded-[1rem] px-3 py-2 text-muted-foreground">
+                <RotateCcw className="h-4 w-4 text-primary" />
                 {formatTime(timerSeconds)}
               </div>
-              <div className="font-semibold text-blue-400">{completionPercent}%</div>
+              <div className="premium-soft rounded-[1rem] px-3 py-2 text-right font-semibold text-primary">
+                {completionPercent}% concluido
+              </div>
             </div>
-            <Progress value={completionPercent} className="mt-2 h-2 bg-white/10 [&>div]:bg-gradient-to-r [&>div]:from-blue-500 [&>div]:to-cyan-400" />
+            <Progress
+              value={completionPercent}
+              className="mt-3 h-2.5 bg-secondary/45 [&>div]:bg-gradient-to-r [&>div]:from-blue-600 [&>div]:to-cyan-400"
+            />
 
-            <div className="mt-3 flex items-center gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               {!timerActive ? (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 border-blue-500/50 text-blue-300 hover:bg-blue-500/10"
+                  className="h-9 rounded-full border-primary/30 bg-primary/10 px-4 text-primary hover:bg-primary/15"
                   onClick={startTimer}
                   data-testid="start-timer"
                 >
-                  <Play className="w-3 h-3 mr-1 fill-current" />
+                  <Play className="mr-1 h-3 w-3 fill-current" />
                   Iniciar descanso
                 </Button>
               ) : (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-8 px-3 border-orange-500/50 text-orange-300 hover:bg-orange-500/10"
+                  className="h-9 rounded-full border-orange-400/30 bg-orange-500/10 px-4 text-orange-400 hover:bg-orange-500/15"
                   onClick={pauseTimer}
                   data-testid="pause-timer"
                 >
-                  <Pause className="w-3 h-3 mr-1" />
+                  <Pause className="mr-1 h-3 w-3" />
                   Pausar
                 </Button>
               )}
               <select
                 value={timerDuration}
                 onChange={(e) => setTimerDuration(parseInt(e.target.value))}
-                className="h-8 bg-[#0b132d] border border-blue-500/30 rounded-lg px-2 text-xs text-zinc-200"
+                className="h-9 rounded-full border border-border/60 bg-background/75 px-3 text-xs font-semibold text-foreground outline-none transition-colors hover:border-primary/35 focus:border-primary/45"
                 data-testid="timer-duration-select"
               >
                 <option value={30}>30s</option>
@@ -416,28 +423,28 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
           </div>
 
           <div className="max-h-[74vh] overflow-y-auto p-4 sm:p-6">
-            <div className="rounded-2xl border border-blue-500/25 bg-gradient-to-b from-[#0b1228]/95 to-[#050a18]/95 p-4 sm:p-5">
+            <div className="premium-soft rounded-[1.8rem] border border-border/60 bg-secondary/22 p-4 sm:p-5">
               <div className="flex items-start gap-3">
-                <div className="h-12 w-12 rounded-full bg-white/8 border border-blue-500/20 flex items-center justify-center text-zinc-200 font-black">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full border border-primary/20 bg-gradient-to-br from-primary/16 to-blue-500/10 font-black text-primary">
                   {completedSets}/{sets.length}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-2xl font-extrabold tracking-tight text-white">{exercise.name}</h3>
-                  <p className="text-zinc-400 text-sm">{exercise.muscle_group || "Exercicio"}</p>
-                  <div className="inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-lg bg-blue-500/20 text-blue-300 text-sm font-bold">
-                    <Target className="w-3 h-3" />
+                  <h3 className="text-2xl font-extrabold tracking-tight text-foreground">{exercise.name}</h3>
+                  <p className="text-sm text-muted-foreground">{exercise.muscle_group || "Exercicio"}</p>
+                  <div className="mt-2 inline-flex items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 py-1 text-sm font-bold text-primary">
+                    <Target className="h-3 w-3" />
                     {exercise.sets}x {exercise.reps}
                   </div>
-                  {loadingVideo && <p className="text-xs text-zinc-500 mt-2">Carregando video...</p>}
+                  {loadingVideo && <p className="mt-2 text-xs text-muted-foreground">Carregando video...</p>}
                 </div>
               </div>
 
-              <div className="mt-4 rounded-2xl overflow-hidden border border-blue-500/20 bg-black/30">
+              <div className="mt-4 overflow-hidden rounded-[1.6rem] border border-border/60 bg-background/45">
                 <div className={`relative ${mp4VideoUrl || embedUrl ? "aspect-video" : "h-52 sm:h-72"}`}>
                   {mp4VideoUrl ? (
                     <video
                       controls
-                      className="w-full h-full"
+                      className="h-full w-full"
                       src={`${BACKEND_URL}/api${mp4VideoUrl}`}
                       data-testid="exercise-video-mp4"
                     >
@@ -447,12 +454,12 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                     <iframe
                       title={`video-${exercise.name}`}
                       src={embedUrl}
-                      className="w-full h-full"
+                      className="h-full w-full"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       allowFullScreen
                     />
                   ) : (
-                    <img src={exercise.image_url || defaultImage} alt={exercise.name} className="w-full h-full object-cover" />
+                    <img src={exercise.image_url || defaultImage} alt={exercise.name} className="h-full w-full object-cover" />
                   )}
 
                   {!mp4VideoUrl && !embedUrl && videoUrl && (
@@ -460,18 +467,18 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                       href={videoUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="absolute inset-0 flex items-center justify-center bg-black/20 hover:bg-black/35 transition-colors"
+                      className="absolute inset-0 flex items-center justify-center bg-background/20 transition-colors hover:bg-background/35"
                     >
-                      <div className="h-20 w-20 rounded-full border border-blue-300/70 bg-blue-500/40 backdrop-blur-sm flex items-center justify-center">
-                        <Play className="w-9 h-9 text-white fill-white ml-1" />
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full border border-primary/35 bg-primary/35 backdrop-blur-sm">
+                        <Play className="ml-1 h-9 w-9 fill-white text-white" />
                       </div>
                     </a>
                   )}
                 </div>
 
                 {observationLines.length > 0 && (
-                  <div className="px-4 py-3 border-t border-blue-500/15 bg-[#050b1a]/90">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300/80">
+                  <div className="border-t border-border/50 bg-background/55 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/80">
                       Observacoes
                     </p>
                     <div className="mt-2 space-y-2">
@@ -483,7 +490,7 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                           return (
                             <div
                               key={`${exercise.name}-observation-divider-${lineIndex}`}
-                              className="border-t border-blue-500/15"
+                              className="border-t border-border/60"
                             />
                           );
                         }
@@ -491,7 +498,7 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                         return (
                           <p
                             key={`${exercise.name}-observation-${lineIndex}`}
-                            className="text-zinc-200 text-sm leading-relaxed"
+                            className="text-sm leading-relaxed text-foreground"
                           >
                             {line}
                           </p>
@@ -502,16 +509,16 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                 )}
 
                 {instructionText && (
-                  <div className="px-4 py-3 border-t border-blue-500/15 bg-[#070d1e]/80">
-                    <p className="text-zinc-300 text-sm leading-relaxed">{instructionText}</p>
+                  <div className="border-t border-border/50 bg-secondary/18 px-4 py-3">
+                    <p className="text-sm leading-relaxed text-muted-foreground">{instructionText}</p>
                   </div>
                 )}
               </div>
 
 
 
-              <div className="mt-4 rounded-2xl border border-blue-500/20 bg-black/25 p-3 sm:p-4">
-                <div className="grid grid-cols-12 gap-2 text-xs tracking-wide uppercase text-zinc-400 px-1 pb-2 border-b border-white/10">
+              <div className="mt-4 rounded-[1.6rem] border border-border/60 bg-background/38 p-3 sm:p-4">
+                <div className="grid grid-cols-12 gap-2 border-b border-border/50 px-1 pb-2 text-xs uppercase tracking-wide text-muted-foreground">
                   <div className="col-span-2">Serie</div>
                   <div className="col-span-4 text-center">Carga</div>
                   <div className="col-span-4 text-center">Repeticoes</div>
@@ -524,15 +531,15 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                     return (
                       <div
                         key={set.set}
-                        className={`grid grid-cols-12 gap-2 items-center p-2 rounded-xl border transition-all ${
+                        className={`grid grid-cols-12 gap-2 items-center rounded-xl border p-2 transition-all ${
                           set.completed
-                            ? "bg-blue-500/12 border-blue-400/45 shadow-[0_0_18px_rgba(59,130,246,0.2)]"
-                            : "bg-[#070e23]/70 border-white/10"
+                            ? "border-primary/35 bg-primary/10 shadow-[0_18px_45px_-32px_rgba(59,130,246,0.6)]"
+                            : "border-border/50 bg-secondary/25"
                         }`}
                         data-testid={`set-row-${index}`}
                       >
                         <div className="col-span-2">
-                          <div className="h-10 rounded-lg bg-white/8 border border-white/10 flex items-center justify-center text-xl font-black text-zinc-200">
+                          <div className="flex h-10 items-center justify-center rounded-[0.95rem] border border-border/60 bg-background/65 text-xl font-black text-foreground">
                             {set.set}
                           </div>
                         </div>
@@ -543,10 +550,10 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                             value={set.weight}
                             onChange={(e) => updateSet(index, "weight", e.target.value)}
                             placeholder="0"
-                            className="h-10 text-center rounded-xl bg-[#0a122c] border-blue-500/25 text-blue-300 text-lg font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="h-10 rounded-[0.95rem] border-border/60 bg-background/80 text-center text-lg font-bold text-primary [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             data-testid={`weight-input-${index}`}
                           />
-                          <p className="text-[11px] text-zinc-500 mt-1 text-center">
+                          <p className="mt-1 text-center text-[11px] text-muted-foreground">
                             ant: {formatPreviousWeight(previousSetData?.weight)}
                           </p>
                         </div>
@@ -557,10 +564,10 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                             value={set.reps}
                             onChange={(e) => updateSet(index, "reps", e.target.value)}
                             placeholder="0"
-                            className="h-10 text-center rounded-xl bg-[#0a122c] border-blue-500/25 text-zinc-100 text-lg font-bold [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            className="h-10 rounded-[0.95rem] border-border/60 bg-background/80 text-center text-lg font-bold text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                             data-testid={`reps-input-${index}`}
                           />
-                          <p className="text-[11px] text-zinc-500 mt-1 text-center">
+                          <p className="mt-1 text-center text-[11px] text-muted-foreground">
                             ant: {formatPreviousReps(previousSetData?.reps)}
                           </p>
                         </div>
@@ -571,13 +578,13 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                             size="icon"
                             className={`h-10 w-10 rounded-xl border ${
                               set.completed
-                                ? "bg-blue-500 text-white border-blue-200 shadow-[0_0_20px_rgba(59,130,246,0.55)]"
-                                : "bg-blue-500/20 text-blue-300 border-blue-500/40 hover:bg-blue-500/30"
+                                ? "border-primary bg-primary text-primary-foreground shadow-[0_0_20px_rgba(59,130,246,0.38)]"
+                                : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/18"
                             }`}
                             onClick={() => toggleSetComplete(index)}
                             data-testid={`complete-set-${index}`}
                           >
-                            <Check className="w-5 h-5" />
+                            <Check className="h-5 w-5" />
                           </Button>
                         </div>
                       </div>
@@ -586,19 +593,21 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                 </div>
               </div>
 
-              {/* Caloric Expenditure Display */}
               {caloriesEstimate && caloriesEstimate.total_calories > 0 && (
-                <div className="mt-4 p-4 rounded-2xl border border-orange-500/30 bg-orange-500/10" data-testid="calories-display">
+                <div
+                  className="mt-4 rounded-[1.6rem] border border-orange-400/25 bg-orange-500/10 p-4"
+                  data-testid="calories-display"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Flame className="w-5 h-5 text-orange-400" />
+                      <Flame className="h-5 w-5 text-orange-400" />
                       <span className="text-sm text-zinc-300">Gasto Calórico Estimado</span>
                     </div>
                     <div className="text-right">
                       <p className="text-2xl font-bold text-orange-400">
                         {caloriesEstimate.total_calories} <span className="text-sm font-normal">kcal</span>
                       </p>
-                      <p className="text-xs text-zinc-500">
+                      <p className="text-xs text-muted-foreground">
                         Volume: {caloriesEstimate.total_volume} kg
                       </p>
                     </div>
@@ -606,22 +615,22 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                 </div>
               )}
 
-              <div className="mt-5 text-center text-[11px] tracking-[0.32em] text-blue-300/70">FITMASTER</div>
+              <div className="mt-5 text-center text-[11px] tracking-[0.32em] text-primary/70">FITMASTER</div>
             </div>
           </div>
 
-          <div className="p-4 border-t border-blue-500/20 bg-[#040916]">
+          <div className="border-t border-border/60 bg-background/55 p-4">
             <Button
-              className="w-full h-12 font-bold uppercase tracking-wider gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white"
+              className="h-12 w-full gap-2 rounded-[1.15rem] text-sm font-bold uppercase tracking-[0.18em]"
               onClick={handleSave}
               disabled={saving}
               data-testid="save-progress-btn"
             >
               {saving ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <div className="h-5 w-5 rounded-full border-2 border-primary-foreground border-t-transparent animate-spin" />
               ) : (
                 <>
-                  <CheckCircle2 className="w-5 h-5" />
+                  <CheckCircle2 className="h-5 w-5" />
                   Salvar progresso
                 </>
               )}

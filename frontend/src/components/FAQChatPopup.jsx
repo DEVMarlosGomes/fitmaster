@@ -379,9 +379,8 @@ export function FAQChatPopup() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "fixed bottom-6 right-6 z-50 flex items-center justify-center",
-          "w-14 h-14 rounded-full shadow-lg transition-all duration-300",
-          "bg-gradient-to-br from-primary to-cyan-500 hover:scale-110",
+          "fixed bottom-24 right-4 z-50 flex items-center justify-center md:bottom-6 md:right-6",
+          "h-14 w-14 rounded-full border border-primary/25 bg-gradient-to-br from-primary to-cyan-500 shadow-[0_26px_50px_-24px_rgba(34,211,238,0.75)] transition-all duration-300 hover:scale-110",
           "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
           isOpen && "rotate-90"
         )}
@@ -398,31 +397,32 @@ export function FAQChatPopup() {
       {/* Popup do chat */}
       <div
         className={cn(
-          "fixed bottom-24 right-6 z-50 w-[380px] max-w-[calc(100vw-48px)]",
-          "bg-card border border-border rounded-2xl shadow-2xl overflow-hidden",
-          "transition-all duration-300 transform origin-bottom-right",
+          "fixed bottom-40 right-4 z-50 w-[410px] max-w-[calc(100vw-1.25rem)] md:bottom-24 md:right-6 md:max-w-[calc(100vw-3rem)]",
+          "premium-panel-strong overflow-hidden rounded-[1.9rem] border-border/70 shadow-[0_34px_80px_-34px_rgba(15,23,42,0.9)]",
+          "origin-bottom-right transform transition-all duration-300",
           isOpen ? "scale-100 opacity-100" : "scale-95 opacity-0 pointer-events-none"
         )}
         data-testid="faq-chat-popup"
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-primary/20 to-cyan-500/20 p-4 border-b border-border">
+        <div className="border-b border-border/60 bg-gradient-to-r from-primary/16 via-background/88 to-cyan-500/12 p-4">
           <div className="flex items-center gap-3">
             {selectedCategory ? (
               <button
                 onClick={handleBackToCategories}
-                className="p-1 rounded-lg hover:bg-white/10 transition-colors"
+                className="rounded-[0.95rem] border border-border/60 bg-background/55 p-2 transition-colors hover:bg-secondary/55"
                 data-testid="faq-back-btn"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
             ) : (
-              <div className="p-2 rounded-full bg-primary/20">
+              <div className="rounded-full border border-primary/20 bg-primary/12 p-2.5">
                 <Sparkles className="w-5 h-5 text-primary" />
               </div>
             )}
             <div className="flex-1">
-              <h3 className="font-bold text-lg">
+              <p className="label-uppercase text-primary">Assistente FitMaster</p>
+              <h3 className="text-lg font-black tracking-[-0.03em]">
                 {selectedCategory ? FAQ_DATABASE[selectedCategory].title : "Central de Ajuda"}
               </h3>
               <p className="text-xs text-muted-foreground">
@@ -433,11 +433,11 @@ export function FAQChatPopup() {
         </div>
 
         {/* Corpo do chat */}
-        <div className="h-[400px] flex flex-col">
+        <div className="flex h-[min(72vh,620px)] flex-col">
           {!selectedCategory ? (
             <>
               {/* Area de mensagens */}
-              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+              <ScrollArea className="flex-1 bg-background/12 p-4" ref={scrollRef}>
                 <div className="space-y-4">
                   {messages.map((msg, idx) => (
                     <div
@@ -447,19 +447,19 @@ export function FAQChatPopup() {
                         msg.type === "user" ? "justify-end" : "justify-start"
                       )}
                     >
-                      <div
-                        className={cn(
-                          "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                          msg.type === "user"
-                            ? "bg-primary text-white rounded-br-sm"
-                            : "bg-secondary/60 rounded-bl-sm"
-                        )}
-                      >
-                        {msg.relatedQuestion && (
-                          <p className="text-xs text-muted-foreground mb-1 italic">
-                            Sobre: {msg.relatedQuestion}
-                          </p>
-                        )}
+                        <div
+                          className={cn(
+                            "max-w-[85%] rounded-[1.25rem] border px-4 py-3 text-sm shadow-[0_18px_38px_-30px_rgba(15,23,42,0.55)]",
+                            msg.type === "user"
+                              ? "rounded-br-sm border-primary/35 bg-gradient-to-r from-primary to-cyan-500 text-white"
+                              : "rounded-bl-sm border-border/50 bg-secondary/50 text-foreground backdrop-blur-sm"
+                          )}
+                        >
+                          {msg.relatedQuestion && (
+                           <p className="mb-1 text-xs italic text-muted-foreground">
+                             Sobre: {msg.relatedQuestion}
+                           </p>
+                         )}
                         <p className="leading-relaxed whitespace-pre-line">{msg.text}</p>
                         {msg.category && (
                           <span className="text-xs text-muted-foreground mt-1 block">
@@ -468,31 +468,31 @@ export function FAQChatPopup() {
                         )}
                         {/* Botoes de navegacao inline apos resposta do bot */}
                         {msg.type === "bot" && msg.categoryKey && (
-                          <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border/30">
-                            <button
-                              onClick={() => setSelectedCategory(msg.categoryKey)}
-                              className="text-xs px-2.5 py-1 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors"
-                              data-testid={`faq-more-from-${msg.categoryKey}`}
-                            >
-                              Mais sobre {msg.category}
-                            </button>
-                            <button
-                              onClick={handleBackToCategories}
-                              className="text-xs px-2.5 py-1 rounded-full bg-secondary/60 hover:bg-secondary/80 transition-colors flex items-center gap-1"
-                              data-testid="faq-inline-categories-btn"
-                            >
+                           <div className="mt-2 flex flex-wrap gap-1.5 border-t border-border/30 pt-2">
+                             <button
+                               onClick={() => setSelectedCategory(msg.categoryKey)}
+                               className="rounded-full border border-primary/20 bg-primary/12 px-2.5 py-1 text-xs text-primary transition-colors hover:bg-primary/20"
+                               data-testid={`faq-more-from-${msg.categoryKey}`}
+                             >
+                               Mais sobre {msg.category}
+                             </button>
+                             <button
+                               onClick={handleBackToCategories}
+                               className="flex items-center gap-1 rounded-full border border-border/50 bg-secondary/50 px-2.5 py-1 text-xs transition-colors hover:bg-secondary/70"
+                               data-testid="faq-inline-categories-btn"
+                             >
                               <LayoutGrid className="w-3 h-3" />
                               Categorias
                             </button>
                           </div>
                         )}
                         {msg.showCategories && (
-                          <div className="mt-2 pt-2 border-t border-border/30">
-                            <button
-                              onClick={handleBackToCategories}
-                              className="text-xs px-2.5 py-1 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors flex items-center gap-1"
-                              data-testid="faq-show-categories-btn"
-                            >
+                           <div className="mt-2 border-t border-border/30 pt-2">
+                             <button
+                               onClick={handleBackToCategories}
+                               className="flex items-center gap-1 rounded-full border border-primary/20 bg-primary/12 px-2.5 py-1 text-xs text-primary transition-colors hover:bg-primary/20"
+                               data-testid="faq-show-categories-btn"
+                             >
                               <LayoutGrid className="w-3 h-3" />
                               Ver categorias
                             </button>
@@ -502,10 +502,10 @@ export function FAQChatPopup() {
                     </div>
                   ))}
                   
-                  {isTyping && (
-                    <div className="flex justify-start">
-                      <div className="bg-secondary/60 rounded-2xl rounded-bl-sm px-4 py-3">
-                        <div className="flex gap-1">
+                   {isTyping && (
+                     <div className="flex justify-start">
+                       <div className="rounded-[1.25rem] rounded-bl-sm border border-border/50 bg-secondary/50 px-4 py-3">
+                         <div className="flex gap-1">
                           <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                           <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                           <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -518,7 +518,7 @@ export function FAQChatPopup() {
                 {/* Categorias - mostrar sempre que nao tem categoria selecionada */}
                 {messages.length <= 1 && (
                   <div className="mt-4 space-y-2">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-3">
+                    <p className="mb-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
                       Categorias populares
                     </p>
                     <div className="grid grid-cols-2 gap-2">
@@ -529,16 +529,15 @@ export function FAQChatPopup() {
                             key={key}
                             onClick={() => setSelectedCategory(key)}
                             className={cn(
-                              "flex items-center gap-2 p-3 rounded-xl text-left",
-                              "bg-secondary/40 hover:bg-secondary/70 transition-all",
-                              "border border-transparent hover:border-border/50"
+                              "flex items-center gap-2 rounded-[1rem] border p-3 text-left",
+                              "border-border/45 bg-secondary/38 transition-all hover:-translate-y-[1px] hover:border-primary/20 hover:bg-secondary/58"
                             )}
                             data-testid={`faq-category-${key}`}
                           >
-                            <div className={cn("p-1.5 rounded-lg", cat.bgColor)}>
+                            <div className={cn("rounded-[0.85rem] p-1.5", cat.bgColor)}>
                               <Icon className={cn("w-4 h-4", cat.color)} />
                             </div>
-                            <span className="text-sm font-medium truncate">{cat.title}</span>
+                            <span className="truncate text-sm font-semibold">{cat.title}</span>
                           </button>
                         );
                       })}
@@ -549,10 +548,10 @@ export function FAQChatPopup() {
 
               {/* Botoes de navegacao rapida (quando ha mensagens e nao e a tela inicial) */}
               {messages.length > 1 && (
-                <div className="px-3 pt-2 pb-1 border-t border-border/50 flex gap-2 flex-wrap">
+                <div className="flex flex-wrap gap-2 border-t border-border/50 px-3 pb-2 pt-2">
                   <button
                     onClick={() => setSelectedCategory(null)}
-                    className="text-xs px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary/70 transition-colors flex items-center gap-1.5"
+                    className="flex items-center gap-1.5 rounded-full border border-border/50 bg-secondary/45 px-3 py-1.5 text-xs transition-colors hover:bg-secondary/65"
                     data-testid="faq-nav-categories"
                   >
                     <LayoutGrid className="w-3 h-3" />
@@ -561,7 +560,7 @@ export function FAQChatPopup() {
                   {lastViewedCategory && (
                     <button
                       onClick={handleReturnToLastCategory}
-                      className="text-xs px-3 py-1.5 rounded-full bg-primary/15 text-primary hover:bg-primary/25 transition-colors flex items-center gap-1.5"
+                      className="flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/12 px-3 py-1.5 text-xs text-primary transition-colors hover:bg-primary/20"
                       data-testid="faq-nav-last-category"
                     >
                       <ArrowLeft className="w-3 h-3" />
@@ -573,7 +572,7 @@ export function FAQChatPopup() {
 
               {/* Sugestoes de busca */}
               {filteredQuestions.length > 0 && (
-                <div className="border-t border-border p-2 bg-secondary/20 max-h-[150px] overflow-y-auto">
+                <div className="max-h-[150px] overflow-y-auto border-t border-border/60 bg-background/40 p-2">
                   {filteredQuestions.map((faq, idx) => (
                     <button
                       key={idx}
@@ -581,9 +580,9 @@ export function FAQChatPopup() {
                         handleSelectQuestion(faq, faq.categoryTitle, faq.categoryKey);
                         setSearchQuery("");
                       }}
-                      className="w-full text-left p-2 rounded-lg hover:bg-secondary/50 transition-colors text-sm"
+                      className="w-full rounded-[0.95rem] border border-transparent p-2 text-left text-sm transition-colors hover:border-border/50 hover:bg-secondary/45"
                     >
-                      <span className="text-muted-foreground text-xs">{faq.categoryTitle}:</span>
+                      <span className="text-xs text-muted-foreground">{faq.categoryTitle}:</span>
                       <p className="truncate">{faq.q}</p>
                     </button>
                   ))}
@@ -591,7 +590,7 @@ export function FAQChatPopup() {
               )}
 
               {/* Input de busca/mensagem */}
-              <div className="p-3 border-t border-border bg-card">
+              <div className="border-t border-border/60 bg-background/55 p-3">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -601,7 +600,7 @@ export function FAQChatPopup() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
                       placeholder="Digite sua duvida..."
-                      className="pl-9 bg-secondary/50 border-border/50"
+                      className="border-border/60 bg-background/80 pl-9"
                       data-testid="faq-search-input"
                     />
                   </div>
@@ -609,7 +608,7 @@ export function FAQChatPopup() {
                     size="icon"
                     onClick={handleSendMessage}
                     disabled={!searchQuery.trim()}
-                    className="shrink-0"
+                    className="h-11 w-11 shrink-0 rounded-[1rem]"
                     data-testid="faq-send-btn"
                   >
                     <Send className="w-4 h-4" />
@@ -619,16 +618,15 @@ export function FAQChatPopup() {
             </>
           ) : (
             /* Lista de perguntas da categoria */
-            <ScrollArea className="flex-1 p-4">
+            <ScrollArea className="flex-1 bg-background/12 p-4">
               <div className="space-y-2">
                 {FAQ_DATABASE[selectedCategory].questions.map((faq, idx) => (
                   <button
                     key={idx}
                     onClick={() => handleSelectQuestion(faq, FAQ_DATABASE[selectedCategory].title, selectedCategory)}
                     className={cn(
-                      "w-full text-left p-4 rounded-xl",
-                      "bg-secondary/40 hover:bg-secondary/70 transition-all",
-                      "border border-transparent hover:border-border/50",
+                      "group w-full rounded-[1.1rem] border p-4 text-left",
+                      "border-border/45 bg-secondary/38 transition-all hover:-translate-y-[1px] hover:border-primary/20 hover:bg-secondary/58",
                       "group"
                     )}
                     data-testid={`faq-question-${idx}`}
@@ -644,10 +642,7 @@ export function FAQChatPopup() {
                 <button
                   onClick={handleBackToCategories}
                   className={cn(
-                    "w-full text-left p-3 rounded-xl mt-3",
-                    "bg-primary/10 hover:bg-primary/20 transition-all",
-                    "border border-primary/20 hover:border-primary/40",
-                    "flex items-center gap-2"
+                    "mt-3 flex w-full items-center gap-2 rounded-[1rem] border border-primary/20 bg-primary/10 p-3 text-left transition-all hover:bg-primary/18 hover:border-primary/35"
                   )}
                   data-testid="faq-back-to-categories-bottom"
                 >
@@ -660,9 +655,12 @@ export function FAQChatPopup() {
         </div>
 
         {/* Footer */}
-        <div className="p-3 border-t border-border bg-secondary/20 text-center">
+        <div className="border-t border-border/60 bg-secondary/22 p-3 text-center">
           <p className="text-xs text-muted-foreground">
-            Nao encontrou? <button onClick={() => {}} className="text-primary hover:underline">Fale com seu personal</button>
+            Nao encontrou?{" "}
+            <a href="/chat" className="font-semibold text-primary hover:underline">
+              Fale com seu personal
+            </a>
           </p>
         </div>
       </div>
