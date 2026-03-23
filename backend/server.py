@@ -25,9 +25,14 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
-mongo_url = os.environ['MONGO_URL']
+DEFAULT_MONGO_URL = "mongodb://localhost:27017"
+DEFAULT_DB_NAME = "fitmaster"
+
+# Fall back to the documented local development defaults when backend/.env
+# has not been created yet.
+mongo_url = os.environ.get("MONGO_URL", DEFAULT_MONGO_URL)
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+db = client[os.environ.get("DB_NAME", DEFAULT_DB_NAME)]
 
 # JWT Configuration
 JWT_SECRET = os.environ.get('JWT_SECRET', 'personal-trainer-secret-key-2024')
@@ -2284,7 +2289,7 @@ async def send_feedback_reminders(
 
     reminder_message = (
         _clean_optional_text(payload.message)
-        or "Lembrete: responda seu check-in e o relatorio do periodo."
+        or "Lembrete: responda seu relato do periodo."
     )
     now = datetime.now(timezone.utc).isoformat()
 
@@ -2293,7 +2298,7 @@ async def send_feedback_reminders(
         notifications.append({
             "id": str(uuid.uuid4()),
             "user_id": student_id,
-            "title": "Lembrete de check-in",
+            "title": "Lembrete de relato",
             "message": reminder_message,
             "type": "info",
             "read": False,
@@ -3151,7 +3156,7 @@ async def request_student_feedback(
         "id": str(uuid.uuid4()),
         "user_id": student_id,
         "title": "Devolutiva Solicitada",
-        "message": message or "Seu personal solicitou uma devolutiva sobre seus treinos. Por favor, responda na aba de Check-in.",
+        "message": message or "Seu personal solicitou uma devolutiva sobre seus treinos. Por favor, responda na aba de Relatos.",
         "type": "feedback_request",
         "read": False,
         "created_at": now,

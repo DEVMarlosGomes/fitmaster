@@ -1,9 +1,9 @@
 import axios from "axios";
-
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+import { BACKEND_URL } from "./backend";
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/api`,
+  timeout: 15000,
   headers: {
     "Content-Type": "application/json",
   },

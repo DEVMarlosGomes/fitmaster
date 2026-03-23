@@ -14,12 +14,13 @@ import {
 } from "../components/ui/select";
 import { Camera, Trash2 } from "lucide-react";
 import api from "../lib/api";
+import { BACKEND_URL } from "../lib/backend";
 import { toast } from "sonner";
 
 export default function EvolutionPhotosPage() {
   const { user } = useAuth();
   const isPersonal = user?.role === "personal";
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
+  const backendUrl = BACKEND_URL;
 
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState("");

@@ -27,14 +27,16 @@ const FAQ_DATABASE = {
     color: "text-blue-400",
     bgColor: "bg-blue-500/10",
     questions: [
-      { q: "Como registro meu progresso no treino?", a: "Para registrar seu progresso, clique em qualquer exercicio do seu treino. Uma janela vai abrir onde voce pode inserir peso, repeticoes e series de cada set. Os dados sao salvos automaticamente e voce pode acompanhar sua evolucao na secao 'Meu Progresso'." },
-      { q: "O que significa PSE e PSR?", a: "PSE (Percepcao Subjetiva de Esforco) mede o quanto o treino foi intenso de 1-10. PSR (Percepcao Subjetiva de Recuperacao) indica como voce estava recuperado antes do treino. Esses indicadores ajudam seu personal a ajustar a periodizacao do seu treino." },
-      { q: "Como concluir meu treino do dia?", a: "Apos terminar todos os exercicios, clique no botao 'Concluir Treino' no topo da pagina. Preencha como se sentiu (PSE, PSR, sensacao geral) e adicione observacoes se necessario. Isso gera um resumo completo da sessao." },
-      { q: "Posso alterar a ordem dos exercicios?", a: "A ordem dos exercicios e definida pelo seu personal trainer de forma estrategica. Se precisar alterar por algum motivo (equipamento ocupado, por exemplo), converse com seu personal pelo chat para obter orientacao." },
-      { q: "O que e sequencia de treinos?", a: "A sequencia mostra quantos treinos consecutivos voce completou. Manter uma sequencia alta aumenta sua pontuacao de gamificacao e demonstra consistencia no treino. Treinar pelo menos 3x por semana ajuda a manter a sequencia ativa." },
-      { q: "Como vejo meu historico de treinos?", a: "Na parte inferior da pagina de treino, voce encontra o 'Historico de Sessoes' com os ultimos 8 treinos concluidos. Para um historico completo com graficos, acesse 'Meu Progresso' no menu lateral." },
-      { q: "O que significa volume total?", a: "Volume total e a soma de: peso x repeticoes x series de todos os exercicios. Por exemplo: 3 series x 10 reps x 20kg = 600kg de volume. Aumentar o volume progressivamente e um dos principais indicadores de evolucao." },
-      { q: "Como funciona a meta semanal?", a: "A meta semanal padrao e de 3 treinos. A barra de progresso mostra quantos voce ja completou nesta semana. Bater a meta regularmente desbloqueia conquistas e melhora seu ranking na gamificacao." }
+      { q: "Posso trocar a ordem dos exercicios?", a: "Evite trocar a ordem.\nEla foi pensada para otimizar seu desempenho.\nSe precisar adaptar, mantenha no inicio os exercicios com maior grau de esforco, como agachamentos, remadas, desenvolvimentos e supinos." },
+      { q: "Se eu perder um dia, devo compensar?", a: "Nao precisa compensar tudo.\nApenas siga o planejamento normalmente." },
+      { q: "Posso trocar algum exercicio caso nao tenha na academia?", a: "Sempre me consulte antes.\nAssim garanto a melhor substituicao para o seu objetivo." },
+      { q: "Devo seguir o intervalo de descanso, mesmo se eu estiver recuperado?", a: "Se estiver recuperado, pode iniciar a proxima serie.\nPorem, analise sua performance: se houver queda significativa no numero de repeticoes, respeite melhor o intervalo.\n\nQueda significativa e quando ha uma reducao clara no numero de repeticoes em relacao a serie anterior.\nExemplo: se voce fez 10 repeticoes e na proxima faz 6 ou menos, ja indica que o descanso foi insuficiente." },
+      { q: "Faco o treino aerobio antes ou depois da musculacao?", a: "De preferencia, apos o treino de musculacao.\nFazer o aerobio antes pode reduzir sua forca e desempenho nos exercicios.\nIsso pode impactar diretamente sua evolucao em carga e intensidade." },
+      { q: "Caso eu nao consiga aumentar a carga?", a: "Sem problema.\nTente aumentar o numero de repeticoes com a mesma carga.\nE mantenha o foco na execucao e intensidade do exercicio." },
+      { q: "Quando eu faltar, eu pulo o treino do dia ou continuo a sequencia?", a: "Continue a sequencia normalmente.\nNao pule treinos do planejamento." },
+      { q: "O que sao WARM UP, WORKING SET e HARD SET?", a: "WARM UP (aquecimento):\nSeries leves para preparar o corpo, sem chegar proximo da falha.\n\nWORKING SET (series de trabalho):\nSeries com carga desafiadora, proximas da falha, mantendo execucao controlada.\n\nHARD SET (series intensas):\nSeries levadas ate a falha muscular, com maxima intensidade e foco total na execucao." },
+      { q: "O que e falha muscular?", a: "E quando voce nao consegue realizar outra repeticao completa mantendo a tecnica correta.\nOu seja, o musculo chegou ao seu limite naquele momento." },
+      { q: "Qual carga devo utilizar?", a: "Posso calcular uma estimativa para voce.\nMe informe:\n1. Qual carga voce utilizou\n2. Quantas repeticoes conseguiu fazer\nDepois, me diga seu objetivo: hipertrofia, definicao ou emagrecimento.\nCom base nisso, vou calcular sua carga ideal para o treino.", mode: "load_estimate" }
     ]
   },
   saude: {
@@ -115,6 +117,95 @@ const GREETING_MESSAGES = [
   "Bem-vindo! Selecione uma categoria ou digite sua duvida."
 ];
 
+const LOAD_ESTIMATE_MODE = "load_estimate";
+
+const normalizeText = (value = "") =>
+  value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+const roundToNearestHalf = (value) => Math.round(value * 2) / 2;
+
+const formatLoad = (value) =>
+  roundToNearestHalf(value).toLocaleString("pt-BR", {
+    minimumFractionDigits: Number.isInteger(roundToNearestHalf(value)) ? 0 : 1,
+    maximumFractionDigits: 1,
+  });
+
+const LOAD_OBJECTIVES = {
+  hipertrofia: {
+    label: "hipertrofia",
+    minPercent: 0.67,
+    maxPercent: 0.8,
+    repRange: "6 a 12 repeticoes",
+  },
+  definicao: {
+    label: "definicao",
+    minPercent: 0.55,
+    maxPercent: 0.7,
+    repRange: "10 a 15 repeticoes",
+  },
+  emagrecimento: {
+    label: "emagrecimento",
+    minPercent: 0.5,
+    maxPercent: 0.65,
+    repRange: "12 a 20 repeticoes",
+  },
+};
+
+function parseLoadEstimateInput(text) {
+  const normalized = normalizeText(String(text || "")).replace(/,/g, ".");
+  const numbers = [...normalized.matchAll(/(\d+(?:\.\d+)?)/g)].map((match) => Number(match[1]));
+
+  let objective = null;
+  if (normalized.includes("hipertrof")) {
+    objective = "hipertrofia";
+  } else if (normalized.includes("defin")) {
+    objective = "definicao";
+  } else if (
+    normalized.includes("emagrec") ||
+    normalized.includes("perder peso") ||
+    normalized.includes("secar")
+  ) {
+    objective = "emagrecimento";
+  }
+
+  const loadKg = numbers[0] ?? null;
+  const reps = numbers[1] ?? null;
+
+  return {
+    loadKg,
+    reps,
+    objective,
+  };
+}
+
+function buildLoadEstimateResponse(text) {
+  const { loadKg, reps, objective } = parseLoadEstimateInput(text);
+
+  if (!loadKg || !reps || !objective) {
+    return {
+      success: false,
+      text: "Me envie no formato: 20 kg, 10 repeticoes, hipertrofia.\nSe preferir, pode escrever algo como: fiz 20 kg para 10 repeticoes e meu objetivo e definicao.",
+    };
+  }
+
+  const safeReps = Math.max(1, Math.round(reps));
+  const estimatedOneRepMax = loadKg * (1 + safeReps / 30);
+  const objectiveConfig = LOAD_OBJECTIVES[objective];
+  const suggestedMin = estimatedOneRepMax * objectiveConfig.minPercent;
+  const suggestedMax = estimatedOneRepMax * objectiveConfig.maxPercent;
+
+  return {
+    success: true,
+    text:
+      `Com ${formatLoad(loadKg)} kg para ${safeReps} repeticoes, sua carga maxima estimada fica em torno de ${formatLoad(estimatedOneRepMax)} kg.\n\n` +
+      `Para ${objectiveConfig.label}, trabalhe na faixa de ${formatLoad(suggestedMin)} kg a ${formatLoad(suggestedMax)} kg, buscando ${objectiveConfig.repRange}.\n` +
+      "Use a faixa mais baixa se a tecnica estiver caindo e a mais alta se ainda houver boa margem com execucao limpa.",
+  };
+}
+
 export function FAQChatPopup() {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
@@ -123,6 +214,7 @@ export function FAQChatPopup() {
   const [isTyping, setIsTyping] = useState(false);
   const [lastViewedCategory, setLastViewedCategory] = useState(null);
   const [lastViewedQuestion, setLastViewedQuestion] = useState(null);
+  const [pendingLoadEstimate, setPendingLoadEstimate] = useState(false);
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -172,30 +264,55 @@ export function FAQChatPopup() {
     const userMessage = { type: "user", text: searchQuery, timestamp: new Date() };
     setMessages((prev) => [...prev, userMessage]);
     const query = searchQuery;
+    const awaitingLoadEstimate = pendingLoadEstimate;
     setSearchQuery("");
     setIsTyping(true);
 
     setTimeout(() => {
-      const answer = findAnswer(query);
       let botResponse;
-      if (answer) {
+      if (awaitingLoadEstimate) {
+        const estimate = buildLoadEstimateResponse(query);
         botResponse = {
           type: "bot",
-          text: answer.a,
-          category: answer.category,
-          categoryKey: answer.categoryKey,
-          relatedQuestion: answer.q,
+          text: estimate.text,
+          category: FAQ_DATABASE.treino.title,
+          categoryKey: "treino",
+          relatedQuestion: "Qual carga devo utilizar?",
           timestamp: new Date()
         };
-        setLastViewedCategory(answer.categoryKey);
-        setLastViewedQuestion({ q: answer.q, categoryKey: answer.categoryKey, categoryTitle: answer.category });
+        if (estimate.success) {
+          setPendingLoadEstimate(false);
+        }
+        setLastViewedCategory("treino");
+        setLastViewedQuestion({
+          q: "Qual carga devo utilizar?",
+          categoryKey: "treino",
+          categoryTitle: FAQ_DATABASE.treino.title,
+        });
       } else {
-        botResponse = {
-          type: "bot",
-          text: "Nao encontrei uma resposta especifica para sua pergunta. Que tal explorar as categorias abaixo ou reformular sua duvida? Voce tambem pode falar diretamente com seu personal pelo chat.",
-          showCategories: true,
-          timestamp: new Date()
-        };
+        const answer = findAnswer(query);
+        if (answer) {
+          botResponse = {
+            type: "bot",
+            text: answer.a,
+            category: answer.category,
+            categoryKey: answer.categoryKey,
+            relatedQuestion: answer.q,
+            timestamp: new Date()
+          };
+          if (answer.mode === LOAD_ESTIMATE_MODE) {
+            setPendingLoadEstimate(true);
+          }
+          setLastViewedCategory(answer.categoryKey);
+          setLastViewedQuestion({ q: answer.q, categoryKey: answer.categoryKey, categoryTitle: answer.category });
+        } else {
+          botResponse = {
+            type: "bot",
+            text: "Nao encontrei uma resposta especifica para sua pergunta. Que tal explorar as categorias abaixo ou reformular sua duvida? Voce tambem pode falar diretamente com seu personal pelo chat.",
+            showCategories: true,
+            timestamp: new Date()
+          };
+        }
       }
       setMessages((prev) => [...prev, botResponse]);
       setIsTyping(false);
@@ -217,6 +334,7 @@ export function FAQChatPopup() {
         categoryKey: categoryKey,
         timestamp: new Date()
       };
+      setPendingLoadEstimate(faq.mode === LOAD_ESTIMATE_MODE);
       setMessages((prev) => [...prev, botResponse]);
       setIsTyping(false);
       setSelectedCategory(null);
@@ -342,7 +460,7 @@ export function FAQChatPopup() {
                             Sobre: {msg.relatedQuestion}
                           </p>
                         )}
-                        <p className="leading-relaxed">{msg.text}</p>
+                        <p className="leading-relaxed whitespace-pre-line">{msg.text}</p>
                         {msg.category && (
                           <span className="text-xs text-muted-foreground mt-1 block">
                             Categoria: {msg.category}

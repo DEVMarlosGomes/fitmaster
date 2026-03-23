@@ -28,6 +28,7 @@ import {
   Video, Film, ExternalLink, Eye, Check, Loader2, ChevronDown
 } from "lucide-react";
 import api from "../lib/api";
+import { BACKEND_URL } from "../lib/backend";
 import { toast } from "sonner";
 
 export default function ExerciseLibraryPage() {
@@ -516,7 +517,7 @@ export default function ExerciseLibraryPage() {
               <div className="aspect-video w-full bg-black">
                 {videoPreview?.mp4_video_url ? (
                   <video
-                    src={`${process.env.REACT_APP_BACKEND_URL}/api${videoPreview.mp4_video_url}`}
+                    src={`${BACKEND_URL}/api${videoPreview.mp4_video_url}`}
                     controls
                     className="w-full h-full"
                     autoPlay

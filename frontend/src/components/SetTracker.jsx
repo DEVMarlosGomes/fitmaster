@@ -18,6 +18,7 @@ import {
   Flame,
 } from "lucide-react";
 import api from "../lib/api";
+import { BACKEND_URL } from "../lib/backend";
 import { toast } from "sonner";
 
 export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLogged }) => {
@@ -304,10 +305,17 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
   const workoutHeadline = dayName
     ? `Treino ${dayName} - ${exercise.muscle_group || exercise.name}`
     : exercise.name;
+  const observationLines = String(exercise.notes || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .flatMap((line) => line.split("|"))
+    .map((line) => line.trim())
+    .filter(Boolean);
   const instructionText =
     exercise.description ||
-    exercise.notes ||
-    "Mantenha a tecnica controlada e finalize todas as series com boa execucao.";
+    (observationLines.length === 0
+      ? "Mantenha a tecnica controlada e finalize todas as series com boa execucao."
+      : "");
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.24),_transparent_40%),radial-gradient(circle_at_bottom,_rgba(56,189,248,0.14),_transparent_45%)] bg-[#030610]/95 backdrop-blur-md">
@@ -430,7 +438,7 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                     <video
                       controls
                       className="w-full h-full"
-                      src={`${process.env.REACT_APP_BACKEND_URL}/api${mp4VideoUrl}`}
+                      src={`${BACKEND_URL}/api${mp4VideoUrl}`}
                       data-testid="exercise-video-mp4"
                     >
                       Seu navegador não suporta o elemento de vídeo.
@@ -460,6 +468,38 @@ export const SetTracker = ({ exercise, workoutId, dayName, onClose, onProgressLo
                     </a>
                   )}
                 </div>
+
+                {observationLines.length > 0 && (
+                  <div className="px-4 py-3 border-t border-blue-500/15 bg-[#050b1a]/90">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-300/80">
+                      Observacoes
+                    </p>
+                    <div className="mt-2 space-y-2">
+                      {observationLines.map((line, lineIndex) => {
+                        const compactLine = line.replace(/\s+/g, "");
+                        const isDivider = /^[_-]{5,}$/.test(compactLine);
+
+                        if (isDivider) {
+                          return (
+                            <div
+                              key={`${exercise.name}-observation-divider-${lineIndex}`}
+                              className="border-t border-blue-500/15"
+                            />
+                          );
+                        }
+
+                        return (
+                          <p
+                            key={`${exercise.name}-observation-${lineIndex}`}
+                            className="text-zinc-200 text-sm leading-relaxed"
+                          >
+                            {line}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {instructionText && (
                   <div className="px-4 py-3 border-t border-blue-500/15 bg-[#070d1e]/80">

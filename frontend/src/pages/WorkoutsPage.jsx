@@ -40,6 +40,7 @@ import {
   Download
 } from "lucide-react";
 import api from "../lib/api";
+import { BACKEND_URL } from "../lib/backend";
 import { toast } from "sonner";
 import { ExerciseImageUpload } from "../components/ExerciseImageUpload";
 
@@ -433,7 +434,7 @@ export default function WorkoutsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => window.open(`${process.env.REACT_APP_BACKEND_URL}/api${workout.aerobic_pdf_url}`, '_blank')}
+                          onClick={() => window.open(`${BACKEND_URL}/api${workout.aerobic_pdf_url}`, "_blank")}
                           className="text-green-400 hover:bg-green-400/10"
                           data-testid={`view-pdf-${workout.id}`}
                         >

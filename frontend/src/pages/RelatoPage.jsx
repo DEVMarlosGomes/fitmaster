@@ -7,6 +7,10 @@ import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import {
+  PersonalRequestedFeedbackPanel,
+  StudentRequestedFeedbackPanel,
+} from "../components/RelatoFeedbackPanel";
+import {
   TrendingUp,
   TrendingDown,
   Minus,
@@ -687,7 +691,7 @@ function PersonalOverview() {
   const [studentRelatos, setStudentRelatos] = useState([]);
   const [loadingRelatos, setLoadingRelatos] = useState(false);
   const [relatoDetail, setRelatoDetail] = useState(null);
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
+  const [updatingStudentStatus, setUpdatingStudentStatus] = useState(false);
 
   useEffect(() => {
     loadOverview();
@@ -720,6 +724,33 @@ function PersonalOverview() {
     }
   };
 
+  const handleToggleStudentActive = async () => {
+    if (!selectedStudent) return;
+
+    const nextIsActive = selectedStudent.is_active === false;
+    setUpdatingStudentStatus(true);
+    try {
+      await api.patch(`/students/${selectedStudent.student_id}/active`, {
+        is_active: nextIsActive,
+      });
+      setOverview((previous) =>
+        previous.map((item) =>
+          item.student_id === selectedStudent.student_id
+            ? { ...item, is_active: nextIsActive }
+            : item
+        )
+      );
+      setSelectedStudent((previous) =>
+        previous ? { ...previous, is_active: nextIsActive } : previous
+      );
+      toast.success(nextIsActive ? "Aluno ativado com sucesso." : "Aluno inativado com sucesso.");
+    } catch (error) {
+      toast.error(error?.response?.data?.detail || "Erro ao atualizar status do aluno");
+    } finally {
+      setUpdatingStudentStatus(false);
+    }
+  };
+
   const getInitials = (name) =>
     (name || "")
       .split(" ")
@@ -732,23 +763,52 @@ function PersonalOverview() {
     // Student detail view
     return (
       <div className="space-y-5 animate-slide-up">
-        {/* Back button + header */}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="hover:bg-white/5"
-            onClick={() => setSelectedStudent(null)}
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div>
-            <h2 className="text-lg font-black uppercase tracking-tight">
-              Relatos de {selectedStudent.student_name}
-            </h2>
-            <p className="text-xs text-muted-foreground">Histórico semanal completo</p>
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="hover:bg-white/5"
+              onClick={() => setSelectedStudent(null)}
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h2 className="text-lg font-black uppercase tracking-tight">
+                Relatos de {selectedStudent.student_name}
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Historico semanal e relatos do periodo
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="outline"
+              className={
+                selectedStudent.is_active !== false
+                  ? "border-emerald-400/40 text-emerald-300"
+                  : "border-red-400/40 text-red-300"
+              }
+            >
+              {selectedStudent.is_active !== false ? "Ativo" : "Inativo"}
+            </Badge>
+            <Button
+              variant={selectedStudent.is_active !== false ? "outline" : "default"}
+              onClick={handleToggleStudentActive}
+              disabled={updatingStudentStatus}
+            >
+              {updatingStudentStatus
+                ? "Atualizando..."
+                : selectedStudent.is_active !== false
+                ? "Inativar Aluno"
+                : "Ativar Aluno"}
+            </Button>
           </div>
         </div>
+
+        <PersonalRequestedFeedbackPanel student={selectedStudent} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
           {/* Relato list */}
@@ -1134,7 +1194,14 @@ export default function RelatoPage() {
   return (
     <MainLayout>
       <div className="animate-slide-up">
-        {isPersonal ? <PersonalOverview /> : <StudentRelatoForm />}
+        {isPersonal ? (
+          <PersonalOverview />
+        ) : (
+          <div className="space-y-6">
+            <StudentRequestedFeedbackPanel />
+            <StudentRelatoForm />
+          </div>
+        )}
       </div>
     </MainLayout>
   );

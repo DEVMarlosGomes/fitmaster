@@ -31,6 +31,7 @@ import {
   Download,
 } from "lucide-react";
 import api from "../lib/api";
+import { BACKEND_URL } from "../lib/backend";
 import { toast } from "sonner";
 import { ExerciseCard } from "../components/ExerciseCard";
 import { SetTracker } from "../components/SetTracker";
@@ -44,8 +45,104 @@ const FEELING_OPTIONS = [
   { value: "ruim", label: "Ruim" },
 ];
 
+const EFFORT_SCALE_ITEMS = [
+  { value: 1, label: "Minimo esforco", barClass: "from-amber-200/95 to-yellow-200/90", textClass: "text-zinc-950" },
+  { value: 2, label: "", barClass: "from-amber-200/90 to-yellow-200/85", textClass: "text-zinc-900" },
+  { value: 3, label: "", barClass: "from-orange-300/90 to-amber-300/85", textClass: "text-zinc-950" },
+  { value: 4, label: "Muito leve", barClass: "from-orange-400/90 to-amber-400/85", textClass: "text-zinc-950" },
+  { value: 5, label: "", barClass: "from-orange-500/85 to-amber-500/80", textClass: "text-white" },
+  { value: 6, label: "Esforco moderado", barClass: "from-orange-600/85 to-red-500/80", textClass: "text-white" },
+  { value: 7, label: "", barClass: "from-orange-700/85 to-red-500/85", textClass: "text-white" },
+  { value: 8, label: "Pesado", barClass: "from-red-600/85 to-rose-500/85", textClass: "text-white" },
+  { value: 9, label: "", barClass: "from-rose-600/85 to-red-600/85", textClass: "text-white" },
+  { value: 10, label: "Muito pesado", barClass: "from-red-700/90 to-rose-700/90", textClass: "text-white" },
+];
+
+const RECOVERY_SCALE_ITEMS = [
+  { value: 1, label: "Exausto", barClass: "from-red-700/90 to-rose-700/90", textClass: "text-white" },
+  { value: 2, label: "", barClass: "from-red-600/85 to-rose-600/85", textClass: "text-white" },
+  { value: 3, label: "", barClass: "from-orange-600/85 to-red-500/80", textClass: "text-white" },
+  { value: 4, label: "Mal recuperado", barClass: "from-orange-500/85 to-amber-500/80", textClass: "text-white" },
+  { value: 5, label: "", barClass: "from-amber-400/85 to-orange-400/80", textClass: "text-zinc-950" },
+  { value: 6, label: "Pouco recuperado", barClass: "from-amber-200/90 to-orange-200/85", textClass: "text-zinc-950" },
+  { value: 7, label: "", barClass: "from-slate-200/90 to-zinc-100/90", textClass: "text-zinc-950" },
+  { value: 8, label: "Recuperado", barClass: "from-cyan-200/85 to-slate-100/90", textClass: "text-zinc-950" },
+  { value: 9, label: "", barClass: "from-cyan-100/85 to-white/90", textClass: "text-zinc-950" },
+  { value: 10, label: "Muito recuperado", barClass: "from-cyan-100/90 to-emerald-100/90", textClass: "text-zinc-950" },
+];
+
 const formatVolume = (value) =>
   Number(value || 0).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+
+function ScaleLegendSelector({ title, subtitle, prompt, icon: Icon, value, onChange, items }) {
+  const selectedItem = items.find((item) => item.value === value) || items[0];
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-border/60 bg-[#060b18] shadow-[0_10px_30px_rgba(2,6,23,0.45)]">
+      <div className="bg-[#020617] px-4 py-4 border-b border-white/5">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 p-2 rounded-xl bg-primary/15 border border-primary/20">
+            <Icon className="w-4 h-4 text-primary" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">{title}</p>
+            <h3 className="text-lg font-black text-white tracking-tight">{subtitle}</h3>
+            <p className="text-xs text-zinc-400 mt-1">{prompt}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-gradient-to-r from-primary/85 via-blue-500/80 to-cyan-400/75 px-4 py-2.5 border-b border-blue-300/15">
+        <p className="text-sm font-semibold text-white/95 tracking-wide">
+          Escala de 1 a 10 com legendas de referencia
+        </p>
+      </div>
+
+      <div className="p-3 bg-[radial-gradient(circle_at_top,_rgba(37,99,235,0.08),_transparent_55%)]">
+        <div className="rounded-xl overflow-hidden border border-white/10">
+          {items.map((item) => {
+            const selected = item.value === value;
+            return (
+              <button
+                key={`${title}-${item.value}`}
+                type="button"
+                onClick={() => onChange(item.value)}
+                className={`grid w-full grid-cols-[44px,1fr,auto] items-center gap-3 px-3 py-2.5 text-left transition-all ${
+                  selected
+                    ? "ring-2 ring-primary/70 ring-inset shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
+                    : "hover:brightness-110"
+                } bg-gradient-to-r ${item.barClass} border-b border-black/15 last:border-b-0`}
+              >
+                <span className={`text-xl font-black ${item.textClass}`}>{item.value}</span>
+                <span className={`text-sm sm:text-base font-black uppercase tracking-wide ${item.textClass}`}>
+                  {item.label || " "}
+                </span>
+                <span
+                  className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${
+                    selected
+                      ? "bg-[#020617]/70 text-white border border-white/10"
+                      : "bg-black/10 text-transparent border border-transparent"
+                  }`}
+                >
+                  {selected ? "Atual" : "."}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2.5">
+          <p className="text-[11px] uppercase tracking-[0.22em] text-zinc-500">Selecionado</p>
+          <p className="text-sm text-zinc-200 mt-1">
+            <span className="font-black text-white">{selectedItem.value}</span>
+            {" - "}
+            <span className="font-semibold">{selectedItem.label || "Nivel intermediario"}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentDashboard() {
   const [workout, setWorkout] = useState(null);
@@ -246,7 +343,7 @@ export default function StudentDashboard() {
               <Button
                 variant="outline"
                 className="gap-2 text-orange-400 border-orange-400/50 hover:bg-orange-400/10"
-                onClick={() => window.open(`${process.env.REACT_APP_BACKEND_URL}/api${workout.aerobic_pdf_url}`, '_blank')}
+                onClick={() => window.open(`${BACKEND_URL}/api${workout.aerobic_pdf_url}`, "_blank")}
                 data-testid="download-aerobic-pdf"
               >
                 <FileText className="w-4 h-4" />
@@ -261,7 +358,7 @@ export default function StudentDashboard() {
                   Concluir treino
                 </Button>
               </DialogTrigger>
-            <DialogContent className="bg-card border-border">
+            <DialogContent className="bg-card border-border sm:max-w-4xl">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold uppercase">Como foi o treino?</DialogTitle>
                 <DialogDescription>Registre sua percepcao para acompanhar a periodizacao.</DialogDescription>
@@ -280,44 +377,26 @@ export default function StudentDashboard() {
                     </div>
                   </div>
 
-                  <div>
-                    <p className="text-sm font-semibold mb-2 flex items-center gap-2">
-                      <HeartPulse className="w-4 h-4 text-cyan-400" />
-                      PSR - Percepcao de recuperacao
-                    </p>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
-                        <Button
-                          key={`recovery-${level}`}
-                          type="button"
-                          variant={recoveryScore === level ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setRecoveryScore(level)}
-                        >
-                          {level}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <ScaleLegendSelector
+                      title="PSR"
+                      subtitle="Percepcao Subjetiva de Recuperacao"
+                      prompt="Como seu corpo chegou para o treino?"
+                      icon={HeartPulse}
+                      value={recoveryScore}
+                      onChange={setRecoveryScore}
+                      items={RECOVERY_SCALE_ITEMS}
+                    />
 
-                  <div>
-                    <p className="text-sm font-semibold mb-2 flex items-center gap-2">
-                      <Gauge className="w-4 h-4 text-orange-400" />
-                      PSE - Esforco do treino
-                    </p>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((level) => (
-                        <Button
-                          key={`effort-${level}`}
-                          type="button"
-                          variant={effortScore === level ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setEffortScore(level)}
-                        >
-                          {level}
-                        </Button>
-                      ))}
-                    </div>
+                    <ScaleLegendSelector
+                      title="PSE"
+                      subtitle="Percepcao Subjetiva de Esforco"
+                      prompt="Quao intenso foi o treino que voce realizou?"
+                      icon={Gauge}
+                      value={effortScore}
+                      onChange={setEffortScore}
+                      items={EFFORT_SCALE_ITEMS}
+                    />
                   </div>
 
                   <div>
