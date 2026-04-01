@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useNotifications } from "../contexts/NotificationContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
 import { Button } from "../components/ui/button";
@@ -116,6 +117,36 @@ function SidebarBrandFull({ theme }) {
         e.target.src = "/brand/rogerio-costa-logo-dark.png";
       }}
     />
+  );
+}
+
+/* ─── Notification Bell with badge ─── */
+function NotificationBell({ theme }) {
+  const { unreadCount } = useNotifications();
+  const capped = unreadCount > 99 ? "99+" : unreadCount;
+
+  return (
+    <Link to="/notificacoes">
+      <button
+        id="notifications-btn"
+        aria-label={`Notificações${unreadCount > 0 ? ` – ${capped} não lidas` : ""}`}
+        className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition hover:text-primary ${
+          theme === "light"
+            ? "border border-black/8 text-foreground/50 hover:border-primary/30 hover:bg-primary/8"
+            : "border border-white/8 text-white/50 hover:border-primary/40 hover:bg-primary/10"
+        }`}
+      >
+        <Bell className="h-4 w-4" />
+        {unreadCount > 0 && (
+          <span
+            className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[1rem] items-center justify-center rounded-full px-1 text-[10px] font-bold leading-none text-white"
+            style={{ background: "#ef4444", boxShadow: "0 0 0 2px var(--header-bg)" }}
+          >
+            {capped}
+          </span>
+        )}
+      </button>
+    </Link>
   );
 }
 
@@ -490,18 +521,7 @@ export const MainLayout = ({ children }) => {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
-              <Link to="/notificacoes">
-                <button
-                  id="notifications-btn"
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition hover:text-primary ${
-                    theme === "light"
-                      ? "border border-black/8 text-foreground/50 hover:border-primary/30 hover:bg-primary/8"
-                      : "border border-white/8 text-white/50 hover:border-primary/40 hover:bg-primary/10"
-                  }`}
-                >
-                  <Bell className="h-4 w-4" />
-                </button>
-              </Link>
+              <NotificationBell theme={theme} />
               <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
               <UserMenu user={user} theme={theme} toggleTheme={toggleTheme} logout={logout} />
             </div>
@@ -596,18 +616,7 @@ export const MainLayout = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <Link to="/notificacoes">
-              <button
-                id="student-notifications-btn"
-                className={`flex h-9 w-9 items-center justify-center rounded-xl transition hover:text-primary ${
-                  theme === "light"
-                    ? "border border-black/8 text-foreground/50 hover:border-primary/30 hover:bg-primary/8"
-                    : "border border-white/8 text-white/50 hover:border-primary/40 hover:bg-primary/10"
-                }`}
-              >
-                <Bell className="h-4 w-4" />
-              </button>
-            </Link>
+            <NotificationBell theme={theme} />
             <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
             <UserMenu user={user} theme={theme} toggleTheme={toggleTheme} logout={logout} />
           </div>

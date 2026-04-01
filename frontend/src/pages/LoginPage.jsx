@@ -42,20 +42,32 @@ export default function LoginPage() {
       className="relative flex min-h-dvh w-full overflow-hidden"
       style={{ background: isLight ? "#f4f7fc" : "#000000" }}
     >
-      {/* ── Painel esquerdo: fundo geométrico do cliente ── */}
+      {/* ── Painel esquerdo: gradiente elegante ── */}
       <div
         className="relative hidden flex-col lg:flex lg:w-[55%] xl:w-[58%]"
         style={{
-          backgroundImage: "url('/brand/login-bg.svg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-          backgroundRepeat: "no-repeat",
+          background: isLight
+            ? "linear-gradient(135deg, #0a0f1e 0%, #0d1b3e 35%, #0044a8 70%, #0081fd 100%)"
+            : "linear-gradient(135deg, #000000 0%, #060d1f 30%, #021847 60%, #0057c8 85%, #0081fd 100%)",
         }}
       >
-        {/* Overlay para legibilidade */}
+        {/* Overlay de brilho sutil */}
         <div
           className="absolute inset-0"
-          style={{ background: isLight ? "rgba(5,10,25,0.48)" : "rgba(0,0,0,0.40)" }}
+          style={{
+            background:
+              "radial-gradient(ellipse at 30% 60%, rgba(0,129,253,0.18) 0%, transparent 65%), radial-gradient(ellipse at 75% 10%, rgba(0,80,200,0.12) 0%, transparent 55%)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Linhas decorativas diagonais */}
+        <div
+          className="absolute inset-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "repeating-linear-gradient(135deg, #ffffff 0px, #ffffff 1px, transparent 1px, transparent 48px)",
+            pointerEvents: "none",
+          }}
         />
 
         {/* Conteúdo sobre o fundo */}
@@ -90,11 +102,31 @@ export default function LoginPage() {
                 letterSpacing: "-0.01em",
                 lineHeight: "1.05",
                 color: "#ffffff",
+                textShadow: "0 2px 24px rgba(0,129,253,0.35)",
               }}
             >
               PLATAFORMA DE<br />
-              <span style={{ color: "#0081fd" }}>ACOMPANHAMENTO</span><br />
-              DO ALUNO
+              <span
+                style={{
+                  background: "linear-gradient(90deg, #0081fd 0%, #60b8ff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                TREINO
+              </span>
+              <br />
+              <span
+                style={{
+                  background: "linear-gradient(90deg, #ffffff 0%, #c0dbff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                }}
+              >
+                RC TEAM
+              </span>
             </h1>
 
             <p

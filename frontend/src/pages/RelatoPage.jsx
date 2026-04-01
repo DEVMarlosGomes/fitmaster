@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNotifications } from "../contexts/NotificationContext";
 import { MainLayout } from "../components/MainLayout";
 import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
@@ -307,11 +308,28 @@ function StudentRelatoForm() {
   const [photoFiles, setPhotoFiles] = useState(EMPTY_PHOTO_FILES);
   const [uploadingPhotoKey, setUploadingPhotoKey] = useState("");
   const [saved, setSaved] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const { fetchUnreadCount } = useNotifications();
   const weekStart = getWeekStart();
 
   useEffect(() => {
-    loadCurrentRelato();
+    checkPendingRequest();
   }, []);
+
+  const checkPendingRequest = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/checkins/pending-feedback-request");
+      if (res.data?.has_pending) {
+        setHasPendingRequest(true);
+        await loadCurrentRelato();
+      }
+    } catch {
+      // silently ignore
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadCurrentRelato = async () => {
     setLoading(true);
@@ -430,6 +448,7 @@ function StudentRelatoForm() {
       setForm((prev) => ({ ...prev, ...uploadedPhotos }));
       setPhotoFiles(EMPTY_PHOTO_FILES);
       setSaved(true);
+      fetchUnreadCount();
       toast.success("Relato semanal enviado! 🔥");
     } catch (err) {
       toast.error(err.response?.data?.detail || "Erro ao enviar relato");
@@ -443,6 +462,33 @@ function StudentRelatoForm() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!hasPendingRequest) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-6 text-center">
+        <div
+          className="flex h-20 w-20 items-center justify-center rounded-full"
+          style={{ background: "rgba(0,129,253,0.10)", border: "1px solid rgba(0,129,253,0.25)" }}
+        >
+          <ClipboardCheck className="h-9 w-9" style={{ color: "#0081fd" }} />
+        </div>
+        <div>
+          <h2 className="text-2xl font-black uppercase tracking-tight text-foreground">
+            Nenhuma solicitacao pendente
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+            Seu personal ainda nao solicitou um relato. Quando ele solicitar, o formulario aparecera aqui automaticamente.
+          </p>
+        </div>
+        <Badge
+          variant="outline"
+          className="border-primary/30 text-primary px-4 py-1.5 text-xs uppercase tracking-widest"
+        >
+          Aguardando solicitacao do personal
+        </Badge>
       </div>
     );
   }

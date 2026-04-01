@@ -1,14 +1,16 @@
 import { useState, useEffect } from "react";
 import { MainLayout } from "../components/MainLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Bell, CheckCheck, Dumbbell, Info, CheckCircle } from "lucide-react";
 import api from "../lib/api";
 import { toast } from "sonner";
+import { useNotifications } from "../contexts/NotificationContext";
 
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { fetchUnreadCount } = useNotifications();
 
   useEffect(() => {
     loadNotifications();
@@ -31,6 +33,7 @@ export default function NotificationsPage() {
       setNotifications(notifications.map(n => 
         n.id === id ? { ...n, read: true } : n
       ));
+      fetchUnreadCount();
     } catch (error) {
       toast.error("Erro ao marcar como lida");
     }
@@ -40,6 +43,7 @@ export default function NotificationsPage() {
     try {
       await api.put("/notifications/read-all");
       setNotifications(notifications.map(n => ({ ...n, read: true })));
+      fetchUnreadCount();
       toast.success("Todas notificações marcadas como lidas");
     } catch (error) {
       toast.error("Erro ao marcar notificações");

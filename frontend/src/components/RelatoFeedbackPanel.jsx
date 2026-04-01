@@ -608,8 +608,7 @@ export function StudentRequestedFeedbackPanel() {
               >
                 {submittingStudentFeedback ? (
                   uploadingPhotoKey ? (
-                    `Enviando ${
-                      PHOTO_FIELDS.find((field) => field.key === uploadingPhotoKey)?.label || "foto"
+                    `Enviando ${PHOTO_FIELDS.find((field) => field.key === uploadingPhotoKey)?.label || "foto"
                     }...`
                   ) : (
                     "Enviando..."
@@ -642,11 +641,10 @@ export function StudentRequestedFeedbackPanel() {
                   key={submission.id}
                   type="button"
                   onClick={() => setActiveSubmissionId(submission.id)}
-                  className={`w-full rounded-lg border p-3 text-left ${
-                    activeSubmissionId === submission.id
+                  className={`w-full rounded-lg border p-3 text-left ${activeSubmissionId === submission.id
                       ? "border-primary bg-primary/10"
                       : "border-border bg-secondary/20 hover:bg-secondary/30"
-                  }`}
+                    }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-semibold">
@@ -752,8 +750,8 @@ export function PersonalRequestedFeedbackPanel({ student }) {
         feedbackPlanForm.mode === "daily"
           ? false
           : feedbackPlanForm.mode === "monthly"
-          ? feedbackPlanForm.monthly_days.includes(date.getDate())
-          : feedbackPlanForm.weekly_days.includes(date.getDay()),
+            ? feedbackPlanForm.monthly_days.includes(date.getDate())
+            : feedbackPlanForm.weekly_days.includes(date.getDay()),
     }),
     [feedbackPlanForm.mode, feedbackPlanForm.monthly_days, feedbackPlanForm.weekly_days]
   );
@@ -913,10 +911,27 @@ export function PersonalRequestedFeedbackPanel({ student }) {
     <div className="space-y-4">
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-xl font-bold uppercase flex items-center gap-2">
-            <CalendarDays className="w-5 h-5 text-primary" />
-            Planejamento de Relato
-          </CardTitle>
+          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+            <CardTitle className="text-xl font-bold uppercase flex items-center gap-2">
+              <CalendarDays className="w-5 h-5 text-primary" />
+              Planejamento de Relato
+            </CardTitle>
+            <Button
+              variant="outline"
+              onClick={handleRequestFeedback}
+              disabled={requestingFeedback || !isStudentActive}
+              className="gap-2 border-amber-400/50 text-amber-400 hover:bg-amber-400/10"
+            >
+              {requestingFeedback ? (
+                "Enviando..."
+              ) : (
+                <>
+                  <BellRing className="w-4 h-4" />
+                  Solicitar Devolutiva
+                </>
+              )}
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {loadingFeedbackPlan ? (
@@ -1085,186 +1100,6 @@ export function PersonalRequestedFeedbackPanel({ student }) {
 
       <Card className="bg-card border-border">
         <CardHeader>
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <CardTitle className="text-xl font-bold uppercase flex items-center gap-2">
-                <MessageSquareText className="w-5 h-5 text-primary" />
-                Relato do Periodo
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-2">{feedbackPlanSummary}</p>
-              {upcomingPlanDates.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Proximas datas:{" "}
-                  {upcomingPlanDates
-                    .map((date) => new Date(`${date}T00:00:00`).toLocaleDateString("pt-BR"))
-                    .join(", ")}
-                </p>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              onClick={handleRequestFeedback}
-              disabled={requestingFeedback || !isStudentActive}
-              className="gap-2 border-amber-400/50 text-amber-400 hover:bg-amber-400/10"
-            >
-              {requestingFeedback ? (
-                "Enviando..."
-              ) : (
-                <>
-                  <BellRing className="w-4 h-4" />
-                  Solicitar Devolutiva
-                </>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {loadingFeedbackSubmissions ? (
-            <div className="flex justify-center py-8">
-              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : !activeFeedbackSubmission ? (
-            <p className="text-sm text-muted-foreground">Nenhum relato registrado ate agora.</p>
-          ) : (
-            <div className="space-y-4">
-              <div className="rounded-lg border border-border p-3 text-sm">
-                <p>
-                  Referencia:{" "}
-                  {new Date(`${activeFeedbackSubmission.reference_date}T00:00:00`).toLocaleDateString(
-                    "pt-BR"
-                  )}
-                </p>
-                <p className="text-muted-foreground mt-1">
-                  Respondidos: {activeFeedbackSubmission.answered_items} | Devolutivas:{" "}
-                  {activeFeedbackSubmission.replied_items}
-                  {" | "}Media:{" "}
-                  {typeof averageScoreFromItems(activeFeedbackSubmission.items) === "number"
-                    ? `${averageScoreFromItems(activeFeedbackSubmission.items)}%`
-                    : "-"}
-                </p>
-              </div>
-
-              {activeFeedbackSubmission.measurements && (
-                <div className="rounded-lg border border-border p-3 text-sm grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div>
-                    <p className="text-xs text-muted-foreground">Peso jejum</p>
-                    <p>{activeFeedbackSubmission.measurements.fasting_weight} kg</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Cintura</p>
-                    <p>{activeFeedbackSubmission.measurements.waist_circumference} cm</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Abdominal</p>
-                    <p>{activeFeedbackSubmission.measurements.abdominal_circumference} cm</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">Quadril</p>
-                    <p>{activeFeedbackSubmission.measurements.hip_circumference || "-"}</p>
-                  </div>
-                </div>
-              )}
-
-              {activeFeedbackSubmission.photos && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {PHOTO_FIELDS.map((field) => (
-                    <div
-                      key={field.key}
-                      className="rounded-lg overflow-hidden border border-border bg-secondary/20"
-                    >
-                      {activeFeedbackSubmission.photos[field.key] ? (
-                        <img
-                          src={resolvePhotoUrl(
-                            backendUrl,
-                            activeFeedbackSubmission.photos[field.key]
-                          )}
-                          alt={field.label}
-                          className="w-full h-40 object-cover"
-                        />
-                      ) : (
-                        <div className="h-40 flex items-center justify-center text-xs text-muted-foreground">
-                          Sem foto
-                        </div>
-                      )}
-                      <div className="px-3 py-2 text-xs text-muted-foreground">{field.label}</div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="rounded-lg border border-border p-3">
-                <p className="text-sm font-semibold">Observacoes gerais</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {activeFeedbackSubmission.general_observations || "Sem observacoes gerais."}
-                </p>
-              </div>
-
-              {FEEDBACK_CATEGORIES.map((category) => {
-                const item = activeItemsByKey[category.key];
-                const scoreValue = clampPercentage(item?.completion_percentage ?? 0);
-                return (
-                  <div key={category.key} className="rounded-lg border border-border p-3 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="font-semibold">{category.label}</p>
-                        <p className="text-xs text-muted-foreground">{category.prompt}</p>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={
-                          item?.personal_reply
-                            ? "border-emerald-400/40 text-emerald-300"
-                            : "border-amber-400/40 text-amber-300"
-                        }
-                      >
-                        {item?.personal_reply ? "Completo" : "Pendente"}
-                      </Badge>
-                    </div>
-                    <div className="rounded-md bg-secondary/40 p-2 space-y-2">
-                      <div className="flex justify-between text-xs text-muted-foreground">
-                        <span>Percentual</span>
-                        <span>{scoreValue}%</span>
-                      </div>
-                      <Progress value={scoreValue} />
-                      <p className="text-sm">
-                        {item?.student_observation || item?.student_feedback || "Sem observacao."}
-                      </p>
-                    </div>
-                    <Textarea
-                      value={personalReplies[category.key] || ""}
-                      onChange={(event) =>
-                        setPersonalReplies((previous) => ({
-                          ...previous,
-                          [category.key]: event.target.value,
-                        }))
-                      }
-                      placeholder="Escreva sua devolutiva"
-                      className="bg-secondary/50 border-white/10"
-                    />
-                    <Button
-                      onClick={() => handleSubmitPersonalReply(category.key)}
-                      disabled={submittingPersonalReplyKey === category.key}
-                      className="gap-2"
-                    >
-                      {submittingPersonalReplyKey === category.key ? (
-                        "Enviando..."
-                      ) : (
-                        <>
-                          <SendHorizontal className="w-4 h-4" />
-                          Responder
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card className="bg-card border-border">
-        <CardHeader>
           <CardTitle className="text-xl font-bold uppercase">
             Historico de Relatos do Periodo
           </CardTitle>
@@ -1279,11 +1114,10 @@ export function PersonalRequestedFeedbackPanel({ student }) {
                   key={submission.id}
                   type="button"
                   onClick={() => setActiveSubmissionId(submission.id)}
-                  className={`w-full rounded-lg border p-3 text-left ${
-                    activeSubmissionId === submission.id
+                  className={`w-full rounded-lg border p-3 text-left ${activeSubmissionId === submission.id
                       ? "border-primary bg-primary/10"
                       : "border-border bg-secondary/20 hover:bg-secondary/30"
-                  }`}
+                    }`}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="font-semibold">
