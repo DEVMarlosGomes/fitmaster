@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="900" viewBox="0 0 1400 900">
+  <defs>
+    <pattern id="geo-pattern" x="0" y="0" width="160" height="90" patternUnits="userSpaceOnUse" patternTransform="rotate(-15 700 450)">
+      <!-- Row 1: interlocking parallelogram arrows (Rogério Costa chevrons) -->
+      <!-- Arrow 1 -->
+      <polygon points="0,8 28,0 42,0 14,8 38,18 28,22 10,14" fill="#0081FD" opacity="0.95"/>
+      <polygon points="14,22 42,14 56,14 28,22 52,32 42,36 24,28" fill="#0081FD" opacity="0.85"/>
+      <!-- Arrow 2 (offset) -->
+      <polygon points="50,8 78,0 92,0 64,8 88,18 78,22 60,14" fill="#0081FD" opacity="0.90"/>
+      <polygon points="64,22 92,14 106,14 78,22 102,32 92,36 74,28" fill="#0081FD" opacity="0.80"/>
+      <!-- Arrow 3 -->
+      <polygon points="100,8 128,0 142,0 114,8 138,18 128,22 110,14" fill="#0081FD" opacity="0.95"/>
+      <polygon points="114,22 142,14 156,14 128,22 152,32 142,36 124,28" fill="#0081FD" opacity="0.85"/>
+      <!-- Row 2: offset row -->
+      <polygon points="25,53 53,45 67,45 39,53 63,63 53,67 35,59" fill="#0081FD" opacity="0.90"/>
+      <polygon points="39,67 67,59 81,59 53,67 77,77 67,81 49,73" fill="#0081FD" opacity="0.80"/>
+      <polygon points="75,53 103,45 117,45 89,53 113,63 103,67 85,59" fill="#0081FD" opacity="0.95"/>
+      <polygon points="89,67 117,59 131,59 103,67 127,77 117,81 99,73" fill="#0081FD" opacity="0.85"/>
+      <polygon points="125,53 153,45 167,45 139,53 163,63 153,67 135,59" fill="#0081FD" opacity="0.90"/>
+      <polygon points="139,67 167,59 181,59 153,67 177,77 167,81 149,73" fill="#0081FD" opacity="0.80"/>
+    </pattern>
+  </defs>
+  <!-- Black background -->
+  <rect width="1400" height="900" fill="#000000"/>
+  <!-- Geometric pattern -->
+  <rect width="1400" height="900" fill="url(#geo-pattern)"/>
+  <!-- Subtle depth overlay -->
+  <rect width="1400" height="900" fill="url(#depth)"/>
+  <defs>
+    <radialGradient id="depth" cx="50%" cy="50%" r="75%" gradientUnits="objectBoundingBox">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.35"/>
+    </radialGradient>
+  </defs>
+  <rect width="1400" height="900" fill="url(#depth)"/>
+</svg>

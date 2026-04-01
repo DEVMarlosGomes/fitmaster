@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { ExerciseCard } from "../components/ExerciseCard";
 import { SetTracker } from "../components/SetTracker";
 import { FAQChatPopup } from "../components/FAQChatPopup";
+import { BRAND } from "../lib/brand";
 
 const FEELING_OPTIONS = [
   { value: "excelente", label: "Excelente" },
@@ -94,7 +95,7 @@ function ScaleLegendSelector({ title, subtitle, prompt, icon: Icon, value, onCha
         </div>
       </div>
 
-      <div className="border-b border-border/60 bg-gradient-to-r from-primary/16 via-sky-400/10 to-blue-500/12 px-4 py-2.5">
+      <div className="border-b border-border/60 bg-gradient-to-r from-primary/16 via-blue-500/10 to-blue-700/10 px-4 py-2.5">
         <p className="text-sm font-semibold tracking-wide text-foreground">
           Escala de 1 a 10 com legendas de referencia
         </p>
@@ -334,12 +335,11 @@ export default function StudentDashboard() {
           <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
             <Dumbbell className="h-10 w-10 text-primary" />
           </div>
-          <h2 className="text-3xl font-black uppercase tracking-[-0.06em] text-white">
+          <h2 className="text-3xl font-black uppercase tracking-[-0.06em] text-foreground">
             Nenhum treino disponivel
           </h2>
-          <p className="mt-4 max-w-lg text-sm leading-7 text-slate-300 sm:text-base">
-            Seu personal ainda nao enviou um treino. Assim que o plano for liberado, ele aparecera aqui com a nova
-            experiencia premium.
+          <p className="mt-4 max-w-lg text-sm leading-7 text-muted-foreground sm:text-base">
+            Seu treino ainda nao foi liberado. Assim que {BRAND.shortName} enviar o plano, ele aparecera aqui.
           </p>
         </div>
         <FAQChatPopup />
@@ -354,23 +354,23 @@ export default function StudentDashboard() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] xl:items-end">
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Treino premium</Badge>
+                <Badge variant="outline">{BRAND.studentLabel}</Badge>
                 <Badge variant="secondary">
                   <Sparkles className="mr-1 h-3.5 w-3.5" />
-                  Interface refinada
+                  Treino estruturado
                 </Badge>
               </div>
 
-              <p className="label-uppercase text-primary">Treino da vez</p>
-              <h1 className="mt-2 text-4xl font-black uppercase tracking-[-0.07em] text-white sm:text-5xl">
+              <p className="label-uppercase text-primary">{BRAND.name}</p>
+              <h1 className="mt-2 text-4xl font-black uppercase tracking-[-0.07em] text-foreground sm:text-5xl">
                 {workout.name}
               </h1>
-              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-                Execute seu plano com foco, registre progresso rapidamente e acompanhe sua consistencia em uma camada
-                visual muito mais clara e premium.
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                Execute seu plano com foco, registre progresso rapidamente e acompanhe sua consistencia dentro da
+                metodologia do {BRAND.name}.
               </p>
-              <p className="mt-3 text-sm text-slate-400">
-                Versao {workout.version} • Atualizado em{" "}
+              <p className="mt-3 text-sm text-muted-foreground">
+                Versao {workout.version} | Atualizado em{" "}
                 {new Date(workout.updated_at).toLocaleDateString("pt-BR")}
               </p>
 
@@ -386,7 +386,7 @@ export default function StudentDashboard() {
                   <p className="text-xs uppercase text-muted-foreground">Registros</p>
                 </div>
                 <div className="metric-tile rounded-[1.35rem] px-4 py-4 text-center">
-                  <Calendar className="mx-auto mb-2 h-5 w-5 text-cyan-400" />
+                  <Calendar className="mx-auto mb-2 h-5 w-5 text-blue-400" />
                   <p className="text-2xl font-black">{workout.days?.length || 0}</p>
                   <p className="text-xs uppercase text-muted-foreground">Dias</p>
                 </div>
@@ -537,7 +537,7 @@ export default function StudentDashboard() {
                 </div>
                 <div className="rounded-[1rem] border border-border/60 bg-secondary/30 p-3">
                   <p className="flex items-center gap-1 text-xs uppercase text-muted-foreground">
-                    <Repeat2 className="h-3 w-3 text-cyan-400" />
+                    <Repeat2 className="h-3 w-3 text-blue-400" />
                     Repeticoes
                   </p>
                   <p className="text-xl font-black">{lastSessionSummary?.total_reps || 0}</p>

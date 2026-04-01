@@ -18,6 +18,7 @@ import {
 import { Link } from "react-router-dom";
 import api from "../lib/api";
 import { toast } from "sonner";
+import { BRAND } from "../lib/brand";
 
 const statCards = [
   {
@@ -30,7 +31,7 @@ const statCards = [
   {
     key: "workouts_count",
     label: "Treinos ativos",
-    accent: "text-cyan-400",
+    accent: "text-blue-400",
     icon: Dumbbell,
     href: "/treinos",
   },
@@ -45,15 +46,15 @@ const statCards = [
 
 const actionCards = [
   {
-    title: "Upload inteligente de treino",
-    description: "Envie planilhas ou rotinas com um fluxo mais elegante e pronto para escalar sua operacao.",
+    title: "Prescricao e upload de treino",
+    description: "Estruture planilhas, rotinas e protocolos com uma camada visual alinhada ao atendimento do cliente.",
     href: "/treinos",
     icon: Upload,
     cta: "Abrir treinos",
   },
   {
-    title: "Monitoramento premium da evolucao",
-    description: "Acompanhe consistencia, carga, adesao e progresso visual dos seus alunos em uma unica camada.",
+    title: "Leitura rapida da evolucao",
+    description: "Acompanhe consistencia, carga, adesao e resposta do aluno em um painel de decisao mais objetivo.",
     href: "/evolucao",
     icon: Target,
     cta: "Ver evolucao",
@@ -89,20 +90,20 @@ export default function PersonalDashboard() {
           <div className="grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_minmax(340px,0.85fr)] xl:items-end">
             <div>
               <div className="mb-5 flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Studio command center</Badge>
+                <Badge variant="outline">{BRAND.performanceLabel}</Badge>
                 <Badge variant="secondary">
                   <Sparkles className="mr-1 h-3.5 w-3.5" />
-                  Rebranding premium
+                  Identidade atualizada
                 </Badge>
               </div>
 
-              <p className="label-uppercase text-primary">Cockpit do personal</p>
-              <h1 className="mt-2 text-4xl font-black uppercase tracking-[-0.07em] text-white sm:text-5xl lg:text-6xl">
+              <p className="label-uppercase text-primary">{BRAND.name}</p>
+              <h1 className="mt-2 text-4xl font-black uppercase tracking-[-0.07em] text-foreground sm:text-5xl lg:text-6xl">
                 Ola, <span className="gradient-text">{user?.name?.split(" ")[0]}</span>
               </h1>
-              <p className="mt-5 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
-                Centralize operacao, acompanhamento e entrega com uma interface mais sofisticada, responsiva e
-                pronta para alto volume.
+              <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground sm:text-base">
+                Centralize alunos, treinos, evolucao e relatos com uma interface coerente com a marca do atendimento
+                e preparada para operacao diaria.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -132,7 +133,7 @@ export default function PersonalDashboard() {
                     <div className="flex items-center justify-between gap-4">
                       <div>
                         <p className="label-uppercase">{card.label}</p>
-                        <p className="stat-number mt-2 text-4xl text-white">{stats[card.key] || 0}</p>
+                        <p className="stat-number mt-2 text-4xl text-foreground">{stats[card.key] || 0}</p>
                       </div>
                       <div className="flex h-12 w-12 items-center justify-center rounded-[1rem] bg-white/5">
                         <card.icon className={`h-6 w-6 ${card.accent}`} strokeWidth={1.7} />
@@ -173,7 +174,7 @@ export default function PersonalDashboard() {
                   </div>
                   <p className="text-lg font-semibold">Nenhum aluno cadastrado</p>
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Comece adicionando seu primeiro aluno para estruturar o studio.
+                    Comece adicionando seu primeiro aluno para estruturar o atendimento.
                   </p>
                   <Link to="/alunos" className="mt-5 inline-flex">
                     <Button variant="outline" className="rounded-[1rem]">

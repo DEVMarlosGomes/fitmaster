@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { ScrollArea } from "./ui/scroll-area";
-import { 
+import {
   MessageCircleQuestion, 
   X, 
   Send, 
@@ -19,6 +19,7 @@ import {
   LayoutGrid
 } from "lucide-react";
 import { cn } from "../lib/utils";
+import { BRAND } from "../lib/brand";
 
 const FAQ_DATABASE = {
   treino: {
@@ -83,8 +84,8 @@ const FAQ_DATABASE = {
   app: {
     icon: Settings,
     title: "Uso do Aplicativo",
-    color: "text-cyan-400",
-    bgColor: "bg-cyan-500/10",
+    color: "text-blue-400",
+    bgColor: "bg-blue-500/10",
     questions: [
       { q: "Como altero minha senha?", a: "Acesse seu perfil clicando no icone de usuario no canto superior. La voce encontra opcoes para alterar senha, email e outras configuracoes da conta." },
       { q: "Como envio fotos de evolucao?", a: "Acesse 'Fotos de Evolucao' no menu lateral. Clique em 'Nova Foto' e tire ou selecione fotos de frente, costas e lateral. Adicione data e observacoes. Seu personal recebera notificacao." },
@@ -99,8 +100,8 @@ const FAQ_DATABASE = {
   outros: {
     icon: HelpCircle,
     title: "Outras Duvidas",
-    color: "text-purple-400",
-    bgColor: "bg-purple-500/10",
+    color: "text-indigo-400",
+    bgColor: "bg-indigo-500/10",
     questions: [
       { q: "Como cancelo ou altero um horario?", a: "Alteracoes de horario devem ser solicitadas diretamente ao seu personal com antecedencia minima de 24h (ou conforme politica do seu personal). Use o chat para fazer a solicitacao." },
       { q: "Posso treinar em outra academia?", a: "Isso depende do acordo com seu personal. Alguns oferecem treinos online ou prescritos para fazer em qualquer lugar. Converse sobre suas necessidades pelo chat." },
@@ -112,8 +113,8 @@ const FAQ_DATABASE = {
 };
 
 const GREETING_MESSAGES = [
-  "Ola! Sou o assistente virtual do FitMaster. Como posso ajudar voce hoje?",
-  "Oi! Estou aqui para tirar suas duvidas sobre treino, nutricao, app e muito mais!",
+  `Ola! Sou o ${BRAND.assistantName}. Como posso ajudar voce hoje?`,
+  `Oi! Estou aqui para tirar suas duvidas sobre treino, nutricao e o acompanhamento do ${BRAND.name}.`,
   "Bem-vindo! Selecione uma categoria ou digite sua duvida."
 ];
 
@@ -380,7 +381,7 @@ export function FAQChatPopup() {
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
           "fixed bottom-24 right-4 z-50 flex items-center justify-center md:bottom-6 md:right-6",
-          "h-14 w-14 rounded-full border border-primary/25 bg-gradient-to-br from-primary to-cyan-500 shadow-[0_26px_50px_-24px_rgba(34,211,238,0.75)] transition-all duration-300 hover:scale-110",
+          "h-14 w-14 rounded-full border border-primary/25 bg-gradient-to-br from-primary to-blue-700 shadow-[0_26px_50px_-24px_rgba(0,129,253,0.72)] transition-all duration-300 hover:scale-110",
           "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2",
           isOpen && "rotate-90"
         )}
@@ -405,7 +406,7 @@ export function FAQChatPopup() {
         data-testid="faq-chat-popup"
       >
         {/* Header */}
-        <div className="border-b border-border/60 bg-gradient-to-r from-primary/16 via-background/88 to-cyan-500/12 p-4">
+        <div className="border-b border-border/60 bg-gradient-to-r from-primary/16 via-background/88 to-blue-700/10 p-4">
           <div className="flex items-center gap-3">
             {selectedCategory ? (
               <button
@@ -421,7 +422,7 @@ export function FAQChatPopup() {
               </div>
             )}
             <div className="flex-1">
-              <p className="label-uppercase text-primary">Assistente FitMaster</p>
+              <p className="label-uppercase text-primary">{BRAND.assistantName}</p>
               <h3 className="text-lg font-black tracking-[-0.03em]">
                 {selectedCategory ? FAQ_DATABASE[selectedCategory].title : "Central de Ajuda"}
               </h3>
@@ -451,7 +452,7 @@ export function FAQChatPopup() {
                           className={cn(
                             "max-w-[85%] rounded-[1.25rem] border px-4 py-3 text-sm shadow-[0_18px_38px_-30px_rgba(15,23,42,0.55)]",
                             msg.type === "user"
-                              ? "rounded-br-sm border-primary/35 bg-gradient-to-r from-primary to-cyan-500 text-white"
+                              ? "rounded-br-sm border-primary/35 bg-gradient-to-r from-primary to-blue-700 text-white"
                               : "rounded-bl-sm border-border/50 bg-secondary/50 text-foreground backdrop-blur-sm"
                           )}
                         >
