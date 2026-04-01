@@ -26,8 +26,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs"
 import { DollarSign, Plus, Check, Clock, AlertTriangle, TrendingUp, Users, Calendar, Trash2 } from "lucide-react";
 import api from "../lib/api";
 import { toast } from "sonner";
+import { useNotifications } from "../contexts/NotificationContext";
 
 export default function FinancialPage() {
+  const { fetchUnreadCount } = useNotifications();
   const [students, setStudents] = useState([]);
   const [payments, setPayments] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -109,6 +111,9 @@ export default function FinancialPage() {
         payment_method: "",
         notes: ""
       });
+      if (formData.status === "paid") {
+        fetchUnreadCount();
+      }
       loadPayments();
       loadSummary();
     } catch (error) {
@@ -125,6 +130,7 @@ export default function FinancialPage() {
         payment_date: new Date().toISOString().split("T")[0]
       });
       toast.success("Pagamento confirmado!");
+      fetchUnreadCount();
       loadPayments();
       loadSummary();
     } catch (error) {
@@ -137,6 +143,7 @@ export default function FinancialPage() {
     try {
       await api.delete(`/financial/payments/${paymentId}`);
       toast.success("Pagamento removido");
+      fetchUnreadCount();
       loadPayments();
       loadSummary();
     } catch (error) {

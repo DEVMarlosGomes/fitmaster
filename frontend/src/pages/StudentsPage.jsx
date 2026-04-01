@@ -33,6 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
+import { UserAvatar } from "../components/UserAvatar";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { generateStudentReport } from "../utils/pdfGenerator";
@@ -392,11 +393,11 @@ export default function StudentsPage() {
                 <CardContent className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                        <span className="text-primary font-bold text-lg">
-                          {student.name.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
+                      <UserAvatar
+                        name={student.name}
+                        photoUrl={student.profile_photo_url}
+                        size="lg"
+                      />
                       <div>
                         <h3 className="font-bold text-lg">{student.name}</h3>
                         <p className="text-sm text-muted-foreground flex items-center gap-1">

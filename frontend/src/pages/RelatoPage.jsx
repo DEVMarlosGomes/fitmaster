@@ -6,6 +6,7 @@ import { Button } from "../components/ui/button";
 import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
+import { UserAvatar } from "../components/UserAvatar";
 import {
   PersonalRequestedFeedbackPanel,
 } from "../components/RelatoFeedbackPanel";
@@ -923,6 +924,47 @@ const EvolutionArrow = ({ direction }) => {
   return null;
 };
 
+const LoadTrendBadge = ({ direction }) => {
+  if (!direction) return null;
+
+  const toneByDirection = {
+    up: {
+      icon: TrendingUp,
+      label: "Progressao de carga",
+      className: "border-emerald-500/25 bg-emerald-500/10 text-emerald-300",
+    },
+    down: {
+      icon: TrendingDown,
+      label: "Regressao de carga",
+      className: "border-red-500/25 bg-red-500/10 text-red-300",
+    },
+    stable: {
+      icon: Minus,
+      label: "Carga estavel",
+      className: "border-yellow-500/25 bg-yellow-500/10 text-yellow-300",
+    },
+  };
+
+  const config = toneByDirection[direction];
+  if (!config) return null;
+
+  const Icon = config.icon;
+  return (
+    <div
+      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${config.className}`}
+    >
+      <Icon className="h-3.5 w-3.5 flex-shrink-0" />
+      <span>{config.label}</span>
+    </div>
+  );
+};
+
+const resolveLoadDirection = (latestRelato, evolution) => {
+  if (latestRelato?.treino_progressao_carga === true) return "up";
+  if (latestRelato?.treino_progressao_carga === false) return "down";
+  return evolution?.carga || null;
+};
+
 const MetricBadge = ({ icon: Icon, value, unit, label, evolution }) => {
   const hasValue = value !== null && value !== undefined;
   return (
@@ -1005,14 +1047,6 @@ function PersonalOverview() {
       setUpdatingStudentStatus(false);
     }
   };
-
-  const getInitials = (name) =>
-    (name || "")
-      .split(" ")
-      .slice(0, 2)
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase();
 
   if (selectedStudent) {
     // Student detail view
@@ -1185,6 +1219,7 @@ function PersonalOverview() {
           {overview.map((item) => {
             const lr = item.latest_relato;
             const evo = item.evolution || {};
+            const loadDirection = resolveLoadDirection(lr, evo);
             const score = lr?.score_final;
             const hasRelato = item.has_relato_semana_atual;
 
@@ -1196,11 +1231,13 @@ function PersonalOverview() {
               >
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
-                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
-                    <span className="text-lg font-black text-primary">
-                      {getInitials(item.student_name)}
-                    </span>
-                  </div>
+                  <UserAvatar
+                    name={item.student_name}
+                    photoUrl={item.profile_photo_url}
+                    size="xl"
+                    className="rounded-2xl border border-primary/20"
+                    fallbackClassName="rounded-2xl"
+                  />
                   {hasRelato && (
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-background" />
                   )}
@@ -1216,17 +1253,20 @@ function PersonalOverview() {
                       </Badge>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {hasRelato ? (
-                      <span className="text-green-400">✓ Relato desta semana enviado</span>
-                    ) : lr ? (
-                      <span className="text-yellow-400">
-                        Último: {formatWeekPeriod(lr.week_start)}
-                      </span>
-                    ) : (
-                      <span>Sem relatos ainda</span>
-                    )}
-                  </p>
+                  <div className="mt-0.5 flex flex-col gap-1.5">
+                    <p className="text-xs text-muted-foreground">
+                      {hasRelato ? (
+                        <span className="text-green-400">✓ Relato desta semana enviado</span>
+                      ) : lr ? (
+                        <span className="text-yellow-400">
+                          Último: {formatWeekPeriod(lr.week_start)}
+                        </span>
+                      ) : (
+                        <span>Sem relatos ainda</span>
+                      )}
+                    </p>
+                    <LoadTrendBadge direction={loadDirection} />
+                  </div>
                 </div>
 
                 {/* Metrics */}
@@ -1245,7 +1285,7 @@ function PersonalOverview() {
                       value={lr.carga_total_semana ? `${Math.round(lr.carga_total_semana)}kg` : null}
                       unit=""
                       label="Carga Total"
-                      evolution={evo.carga}
+                      evolution={loadDirection}
                     />
                     <div className="h-10 w-px bg-white/5" />
                     <MetricBadge

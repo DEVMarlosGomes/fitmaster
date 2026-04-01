@@ -11,7 +11,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional, Dict, Any
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, date
 import jwt
 import bcrypt
 import pandas as pd
@@ -176,6 +176,170 @@ def _safe_parse_iso_datetime(value: Optional[str]) -> datetime:
     except ValueError:
         return datetime.min.replace(tzinfo=timezone.utc)
 
+
+def _safe_parse_iso_date(value: Optional[str]) -> Optional[date]:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).strip()).date()
+    except ValueError:
+        try:
+            return datetime.strptime(str(value).strip(), "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+
+def _format_brl(value: Optional[float]) -> str:
+    amount = float(value or 0)
+    whole, fractional = f"{amount:.2f}".split(".")
+    grouped = ""
+    for idx, char in enumerate(reversed(whole)):
+        if idx and idx % 3 == 0:
+            grouped = "." + grouped
+        grouped = char + grouped
+    return f"R$ {grouped},{fractional}"
+
+
+async def _insert_notification(
+    user_id: str,
+    title: str,
+    message: str,
+    notification_type: str = "info",
+    key: Optional[str] = None,
+    created_at: Optional[str] = None,
+) -> bool:
+    if key:
+        existing = await db.notifications.find_one({"user_id": user_id, "key": key}, {"_id": 0, "id": 1})
+        if existing:
+            return False
+
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()),
+        "user_id": user_id,
+        "title": title,
+        "message": message,
+        "type": notification_type,
+        "read": False,
+        "created_at": created_at or datetime.now(timezone.utc).isoformat(),
+        **({"key": key} if key else {}),
+    })
+    return True
+
+
+async def _delete_payment_reminder_notifications(student_id: str, payment_id: str) -> None:
+    await db.notifications.delete_many({
+        "user_id": student_id,
+        "key": {"$regex": f"^payment-reminder:{re.escape(payment_id)}:"},
+    })
+
+
+def _build_payment_reminder_content(payment: Dict[str, Any]) -> Optional[Dict[str, str]]:
+    due_date = _safe_parse_iso_date(payment.get("due_date"))
+    if not due_date:
+        return None
+
+    days_until_due = (due_date - datetime.now(timezone.utc).date()).days
+    if days_until_due not in {2, 1, 0}:
+        return None
+
+    if days_until_due == 2:
+        title = "Pagamento vence em 2 dias"
+        message = (
+            f"Sua cobrança de {_format_brl(payment.get('amount'))} vence em "
+            f"{due_date.strftime('%d/%m/%Y')}."
+        )
+    elif days_until_due == 1:
+        title = "Pagamento vence amanhã"
+        message = (
+            f"Sua cobrança de {_format_brl(payment.get('amount'))} vence amanhã, "
+            f"em {due_date.strftime('%d/%m/%Y')}."
+        )
+    else:
+        title = "Pagamento vence hoje"
+        message = (
+            f"Sua cobrança de {_format_brl(payment.get('amount'))} vence hoje. "
+            "Evite atrasos no seu acompanhamento."
+        )
+
+    return {
+        "title": title,
+        "message": message,
+        "key": f"payment-reminder:{payment['id']}:d{days_until_due}",
+    }
+
+
+async def _create_payment_reminder_notification(payment: Dict[str, Any]) -> bool:
+    if payment.get("status") not in {"pending", "overdue"}:
+        return False
+
+    reminder = _build_payment_reminder_content(payment)
+    if not reminder:
+        return False
+
+    return await _insert_notification(
+        user_id=payment["student_id"],
+        title=reminder["title"],
+        message=reminder["message"],
+        notification_type="payment",
+        key=reminder["key"],
+    )
+
+
+async def _refresh_overdue_payments(
+    *,
+    personal_id: Optional[str] = None,
+    student_id: Optional[str] = None,
+) -> None:
+    today_iso = datetime.now(timezone.utc).date().isoformat()
+    query: Dict[str, Any] = {
+        "status": "pending",
+        "due_date": {"$lt": today_iso},
+    }
+    if personal_id:
+        query["personal_id"] = personal_id
+    if student_id:
+        query["student_id"] = student_id
+    await db.payments.update_many(query, {"$set": {"status": "overdue"}})
+
+
+async def _sync_student_payment_notifications(student: Dict[str, Any]) -> None:
+    await _refresh_overdue_payments(student_id=student["id"])
+
+    payments = await db.payments.find(
+        {"student_id": student["id"], "status": {"$in": ["pending", "overdue"]}},
+        {"_id": 0}
+    ).to_list(300)
+
+    for payment in payments:
+        await _create_payment_reminder_notification(payment)
+
+
+async def _handle_paid_payment_notifications(
+    payment: Dict[str, Any],
+    *,
+    student_name: Optional[str] = None,
+) -> None:
+    payment_id = payment["id"]
+    student_id = payment["student_id"]
+    personal_id = payment["personal_id"]
+
+    await _delete_payment_reminder_notifications(student_id, payment_id)
+
+    student_label = student_name or "Aluno"
+    payment_date = _safe_parse_iso_date(payment.get("payment_date"))
+    payment_date_label = payment_date.strftime("%d/%m/%Y") if payment_date else "hoje"
+
+    await _insert_notification(
+        user_id=personal_id,
+        title="Pagamento pago",
+        message=(
+            f"{student_label} pagou {_format_brl(payment.get('amount'))} "
+            f"em {payment_date_label}."
+        ),
+        notification_type="success",
+        key=f"payment-paid-personal:{payment_id}",
+    )
+
 def _exercise_library_priority_key(exercise: Dict[str, Any], personal_id: Optional[str]) -> tuple:
     is_personal_match = bool(personal_id and exercise.get("personal_id") == personal_id)
     updated_at = _safe_parse_iso_datetime(exercise.get("updated_at"))
@@ -282,7 +446,41 @@ class UserResponse(BaseModel):
     is_approved: Optional[bool] = None
     approved_at: Optional[str] = None
     approved_by: Optional[str] = None
+    profile_photo_url: Optional[str] = None
+    should_prompt_profile_photo: bool = False
     created_at: str
+
+
+def build_user_response(user_doc: Dict[str, Any]) -> UserResponse:
+    profile_photo_url = user_doc.get("profile_photo_url")
+    should_prompt_profile_photo = (
+        user_doc.get("role") == "student"
+        and not profile_photo_url
+        and not bool(user_doc.get("profile_photo_prompt_seen", False))
+    )
+
+    return UserResponse(
+        id=user_doc["id"],
+        email=user_doc["email"],
+        name=user_doc["name"],
+        role=user_doc["role"],
+        personal_id=user_doc.get("personal_id"),
+        phone=user_doc.get("phone"),
+        notes=user_doc.get("notes"),
+        birth_date=user_doc.get("birth_date"),
+        gender=user_doc.get("gender"),
+        objective=user_doc.get("objective"),
+        medical_restrictions=user_doc.get("medical_restrictions"),
+        emergency_contact=user_doc.get("emergency_contact"),
+        address=user_doc.get("address"),
+        is_active=user_doc.get("is_active", True),
+        is_approved=user_doc.get("is_approved"),
+        approved_at=user_doc.get("approved_at"),
+        approved_by=user_doc.get("approved_by"),
+        profile_photo_url=profile_photo_url,
+        should_prompt_profile_photo=should_prompt_profile_photo,
+        created_at=user_doc["created_at"],
+    )
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -693,6 +891,24 @@ def create_token(user_id: str, role: str) -> str:
     }
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
 
+
+def delete_profile_photo_file(photo_url: Optional[str], user_id: Optional[str]) -> None:
+    if not photo_url or not user_id:
+        return
+    if not photo_url.startswith("/uploads/"):
+        return
+
+    file_name = photo_url.split("/")[-1]
+    if not file_name.startswith(f"profile_{user_id}_"):
+        return
+
+    file_path = ROOT_DIR / photo_url.lstrip("/")
+    try:
+        if file_path.exists() and file_path.is_file():
+            file_path.unlink()
+    except OSError:
+        logger.warning("Não foi possível remover foto de perfil antiga: %s", file_path)
+
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -750,6 +966,8 @@ async def register(user: UserCreate):
         "is_approved": False,
         "approved_at": None,
         "approved_by": None,
+        "profile_photo_url": None,
+        "profile_photo_prompt_seen": True,
         "created_at": now
     }
     
@@ -770,14 +988,7 @@ async def register(user: UserCreate):
     return RegisterResponse(
         message="Cadastro enviado. Aguarde aprovacao do administrador para acessar o sistema.",
         pending_approval=True,
-        user=UserResponse(
-            id=user_id,
-            email=user.email,
-            name=user.name,
-            role="personal",
-            is_approved=False,
-            created_at=now
-        )
+        user=build_user_response(user_doc)
     )
 
 @api_router.post("/auth/login", response_model=TokenResponse)
@@ -793,50 +1004,60 @@ async def login(credentials: UserLogin):
     token = create_token(user["id"], user["role"])
     return TokenResponse(
         access_token=token,
-        user=UserResponse(
-            id=user["id"],
-            email=user["email"],
-            name=user["name"],
-            role=user["role"],
-            personal_id=user.get("personal_id"),
-            phone=user.get("phone"),
-            notes=user.get("notes"),
-            birth_date=user.get("birth_date"),
-            gender=user.get("gender"),
-            objective=user.get("objective"),
-            medical_restrictions=user.get("medical_restrictions"),
-            emergency_contact=user.get("emergency_contact"),
-            address=user.get("address"),
-            is_active=user.get("is_active", True),
-            is_approved=user.get("is_approved"),
-            approved_at=user.get("approved_at"),
-            approved_by=user.get("approved_by"),
-            created_at=user["created_at"]
-        )
+        user=build_user_response(user)
     )
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
-    return UserResponse(
-        id=current_user["id"],
-        email=current_user["email"],
-        name=current_user["name"],
-        role=current_user["role"],
-        personal_id=current_user.get("personal_id"),
-        phone=current_user.get("phone"),
-        notes=current_user.get("notes"),
-        birth_date=current_user.get("birth_date"),
-        gender=current_user.get("gender"),
-        objective=current_user.get("objective"),
-        medical_restrictions=current_user.get("medical_restrictions"),
-        emergency_contact=current_user.get("emergency_contact"),
-        address=current_user.get("address"),
-        is_active=current_user.get("is_active", True),
-        is_approved=current_user.get("is_approved"),
-        approved_at=current_user.get("approved_at"),
-        approved_by=current_user.get("approved_by"),
-        created_at=current_user["created_at"]
+    return build_user_response(current_user)
+
+
+@api_router.post("/auth/profile-photo", response_model=UserResponse)
+async def upload_profile_photo(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Apenas imagens são aceitas")
+
+    user_id = current_user["id"]
+    now = datetime.now(timezone.utc).isoformat()
+    file_ext = file.filename.rsplit(".", 1)[-1] if file.filename and "." in file.filename else "jpg"
+    file_name = f"profile_{user_id}_{uuid.uuid4().hex[:10]}.{file_ext}"
+    file_path = UPLOAD_DIR / file_name
+
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    previous_photo_url = current_user.get("profile_photo_url")
+    profile_photo_url = f"/uploads/{file_name}"
+
+    await db.users.update_one(
+        {"id": user_id},
+        {
+            "$set": {
+                "profile_photo_url": profile_photo_url,
+                "profile_photo_prompt_seen": True,
+                "updated_at": now,
+            }
+        }
     )
+
+    delete_profile_photo_file(previous_photo_url, user_id)
+
+    updated = await db.users.find_one({"id": user_id}, {"_id": 0})
+    return build_user_response(updated)
+
+
+@api_router.post("/auth/profile-photo/prompt-seen", response_model=UserResponse)
+async def mark_profile_photo_prompt_seen(current_user: dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"profile_photo_prompt_seen": True}}
+    )
+
+    updated = await db.users.find_one({"id": current_user["id"]}, {"_id": 0})
+    return build_user_response(updated)
 
 # ==================== ADMIN APPROVAL ROUTES ====================
 
@@ -847,16 +1068,7 @@ async def list_pending_personals(admin: dict = Depends(get_admin_user)):
         {"_id": 0, "password": 0}
     ).sort("created_at", 1).to_list(500)
 
-    return [UserResponse(
-        id=p["id"],
-        email=p["email"],
-        name=p["name"],
-        role=p["role"],
-        is_approved=p.get("is_approved"),
-        approved_at=p.get("approved_at"),
-        approved_by=p.get("approved_by"),
-        created_at=p["created_at"]
-    ) for p in pending_personals]
+    return [build_user_response(p) for p in pending_personals]
 
 @api_router.post("/admin/personals/{personal_id}/approve", response_model=UserResponse)
 async def approve_personal_account(personal_id: str, admin: dict = Depends(get_admin_user)):
@@ -881,25 +1093,7 @@ async def approve_personal_account(personal_id: str, admin: dict = Depends(get_a
     })
 
     updated = await db.users.find_one({"id": personal_id}, {"_id": 0, "password": 0})
-    return UserResponse(
-        id=updated["id"],
-        email=updated["email"],
-        name=updated["name"],
-        role=updated["role"],
-        personal_id=updated.get("personal_id"),
-        phone=updated.get("phone"),
-        notes=updated.get("notes"),
-        birth_date=updated.get("birth_date"),
-        gender=updated.get("gender"),
-        objective=updated.get("objective"),
-        medical_restrictions=updated.get("medical_restrictions"),
-        emergency_contact=updated.get("emergency_contact"),
-        address=updated.get("address"),
-        is_approved=updated.get("is_approved"),
-        approved_at=updated.get("approved_at"),
-        approved_by=updated.get("approved_by"),
-        created_at=updated["created_at"]
-    )
+    return build_user_response(updated)
 
 # ==================== STUDENT MANAGEMENT ====================
 
@@ -928,6 +1122,8 @@ async def create_student(student: StudentCreate, personal: dict = Depends(get_pe
         "emergency_contact": student.emergency_contact,
         "address": student.address,
         "is_active": True,
+        "profile_photo_url": None,
+        "profile_photo_prompt_seen": False,
         "created_at": now
     }
     
@@ -943,23 +1139,7 @@ async def create_student(student: StudentCreate, personal: dict = Depends(get_pe
         "created_at": now
     })
     
-    return UserResponse(
-        id=student_id,
-        email=student.email,
-        name=student.name,
-        role="student",
-        personal_id=personal["id"],
-        phone=student.phone,
-        notes=student.notes,
-        birth_date=student.birth_date,
-        gender=student.gender,
-        objective=student.objective,
-        medical_restrictions=student.medical_restrictions,
-        emergency_contact=student.emergency_contact,
-        address=student.address,
-        is_active=True,
-        created_at=now
-    )
+    return build_user_response(student_doc)
 
 @api_router.get("/students", response_model=List[UserResponse])
 async def list_students(personal: dict = Depends(get_personal_user)):
@@ -968,23 +1148,7 @@ async def list_students(personal: dict = Depends(get_personal_user)):
         {"_id": 0, "password": 0}
     ).to_list(1000)
     
-    return [UserResponse(
-        id=s["id"],
-        email=s["email"],
-        name=s["name"],
-        role=s["role"],
-        personal_id=s.get("personal_id"),
-        phone=s.get("phone"),
-        notes=s.get("notes"),
-        birth_date=s.get("birth_date"),
-        gender=s.get("gender"),
-        objective=s.get("objective"),
-        medical_restrictions=s.get("medical_restrictions"),
-        emergency_contact=s.get("emergency_contact"),
-        address=s.get("address"),
-        is_active=s.get("is_active", True),
-        created_at=s["created_at"]
-    ) for s in students]
+    return [build_user_response(s) for s in students]
 
 @api_router.get("/students/{student_id}", response_model=UserResponse)
 async def get_student(student_id: str, personal: dict = Depends(get_personal_user)):
@@ -995,23 +1159,7 @@ async def get_student(student_id: str, personal: dict = Depends(get_personal_use
     if not student:
         raise HTTPException(status_code=404, detail="Aluno não encontrado")
     
-    return UserResponse(
-        id=student["id"],
-        email=student["email"],
-        name=student["name"],
-        role=student["role"],
-        personal_id=student.get("personal_id"),
-        phone=student.get("phone"),
-        notes=student.get("notes"),
-        birth_date=student.get("birth_date"),
-        gender=student.get("gender"),
-        objective=student.get("objective"),
-        medical_restrictions=student.get("medical_restrictions"),
-        emergency_contact=student.get("emergency_contact"),
-        address=student.get("address"),
-        is_active=student.get("is_active", True),
-        created_at=student["created_at"]
-    )
+    return build_user_response(student)
 
 @api_router.put("/students/{student_id}", response_model=UserResponse)
 async def update_student(student_id: str, update: StudentUpdate, personal: dict = Depends(get_personal_user)):
@@ -1026,23 +1174,7 @@ async def update_student(student_id: str, update: StudentUpdate, personal: dict 
         await db.users.update_one({"id": student_id}, {"$set": update_data})
     
     updated = await db.users.find_one({"id": student_id}, {"_id": 0, "password": 0})
-    return UserResponse(
-        id=updated["id"],
-        email=updated["email"],
-        name=updated["name"],
-        role=updated["role"],
-        personal_id=updated.get("personal_id"),
-        phone=updated.get("phone"),
-        notes=updated.get("notes"),
-        birth_date=updated.get("birth_date"),
-        gender=updated.get("gender"),
-        objective=updated.get("objective"),
-        medical_restrictions=updated.get("medical_restrictions"),
-        emergency_contact=updated.get("emergency_contact"),
-        address=updated.get("address"),
-        is_active=updated.get("is_active", True),
-        created_at=updated["created_at"]
-    )
+    return build_user_response(updated)
 
 @api_router.patch("/students/{student_id}/active", response_model=UserResponse)
 async def set_student_active_status(
@@ -1067,23 +1199,7 @@ async def set_student_active_status(
         {"_id": 0, "password": 0}
     )
 
-    return UserResponse(
-        id=updated["id"],
-        email=updated["email"],
-        name=updated["name"],
-        role=updated["role"],
-        personal_id=updated.get("personal_id"),
-        phone=updated.get("phone"),
-        notes=updated.get("notes"),
-        birth_date=updated.get("birth_date"),
-        gender=updated.get("gender"),
-        objective=updated.get("objective"),
-        medical_restrictions=updated.get("medical_restrictions"),
-        emergency_contact=updated.get("emergency_contact"),
-        address=updated.get("address"),
-        is_active=updated.get("is_active", True),
-        created_at=updated["created_at"]
-    )
+    return build_user_response(updated)
 
 @api_router.delete("/students/{student_id}")
 async def delete_student(student_id: str, personal: dict = Depends(get_personal_user)):
@@ -1573,15 +1689,22 @@ async def create_payment(payment: FinancialPaymentCreate, personal: dict = Depen
     
     payment_id = str(uuid.uuid4())
     now = datetime.now(timezone.utc).isoformat()
+    payment_data = payment.model_dump()
+    if payment_data.get("status") == "paid" and not payment_data.get("payment_date"):
+        payment_data["payment_date"] = datetime.now(timezone.utc).date().isoformat()
     
     payment_doc = {
         "id": payment_id,
         "personal_id": personal["id"],
-        **payment.model_dump(),
+        **payment_data,
         "created_at": now
     }
     
     await db.payments.insert_one(payment_doc)
+    if payment_doc.get("status") == "paid":
+        await _handle_paid_payment_notifications(payment_doc, student_name=student.get("name"))
+    else:
+        await _create_payment_reminder_notification(payment_doc)
     
     # Remove _id from response
     payment_doc.pop("_id", None)
@@ -1595,6 +1718,7 @@ async def list_payments(
     end_date: Optional[str] = None,
     personal: dict = Depends(get_personal_user)
 ):
+    await _refresh_overdue_payments(personal_id=personal["id"])
     query = {"personal_id": personal["id"]}
     if student_id:
         query["student_id"] = student_id
@@ -1618,17 +1742,32 @@ async def update_payment(payment_id: str, update: FinancialPaymentUpdate, person
         raise HTTPException(status_code=404, detail="Pagamento não encontrado")
     
     update_data = {k: v for k, v in update.model_dump().items() if v is not None}
+    if update_data.get("status") == "paid" and not update_data.get("payment_date"):
+        update_data["payment_date"] = datetime.now(timezone.utc).date().isoformat()
     if update_data:
         await db.payments.update_one({"id": payment_id}, {"$set": update_data})
     
     updated = await db.payments.find_one({"id": payment_id}, {"_id": 0})
+    if payment.get("status") != "paid" and updated.get("status") == "paid":
+        student = await db.users.find_one({"id": payment["student_id"]}, {"_id": 0, "name": 1})
+        await _handle_paid_payment_notifications(updated, student_name=student.get("name") if student else None)
+    elif "due_date" in update_data or "status" in update_data:
+        await _delete_payment_reminder_notifications(updated["student_id"], payment_id)
+        await _create_payment_reminder_notification(updated)
     return updated
 
 @api_router.delete("/financial/payments/{payment_id}")
 async def delete_payment(payment_id: str, personal: dict = Depends(get_personal_user)):
+    payment = await db.payments.find_one({"id": payment_id, "personal_id": personal["id"]}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+
     result = await db.payments.delete_one({"id": payment_id, "personal_id": personal["id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+
+    await _delete_payment_reminder_notifications(payment["student_id"], payment_id)
+    await db.notifications.delete_many({"key": f"payment-paid-personal:{payment_id}"})
     return {"message": "Pagamento removido com sucesso"}
 
 @api_router.get("/financial/summary")
@@ -1637,6 +1776,7 @@ async def get_financial_summary(
     end_date: Optional[str] = None,
     personal: dict = Depends(get_personal_user)
 ):
+    await _refresh_overdue_payments(personal_id=personal["id"])
     query = {"personal_id": personal["id"]}
     
     if start_date or end_date:
@@ -1671,10 +1811,12 @@ async def get_student_financial(
         student = await db.users.find_one({"id": student_id, "personal_id": current_user["id"]})
         if not student:
             raise HTTPException(status_code=404, detail="Aluno não encontrado")
+        await _refresh_overdue_payments(personal_id=current_user["id"], student_id=student_id)
         query = {"student_id": student_id, "personal_id": current_user["id"]}
     else:
         if student_id != current_user["id"]:
             raise HTTPException(status_code=403, detail="Acesso negado")
+        await _sync_student_payment_notifications(current_user)
         query = {"student_id": student_id}
     
     payments = await db.payments.find(query, {"_id": 0}).sort("due_date", -1).to_list(100)
@@ -3562,11 +3704,19 @@ async def list_workout_sessions(
 # ==================== NOTIFICATIONS ====================
 
 @api_router.get("/notifications", response_model=List[NotificationResponse])
-async def get_notifications(current_user: dict = Depends(get_current_user)):
+async def get_notifications(
+    limit: int = Query(default=50, ge=1, le=200),
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") == "student":
+        await _sync_student_payment_notifications(current_user)
+    elif current_user.get("role") == "personal":
+        await _refresh_overdue_payments(personal_id=current_user["id"])
+
     notifications = await db.notifications.find(
         {"user_id": current_user["id"]},
         {"_id": 0}
-    ).sort("created_at", -1).to_list(50)
+    ).sort("created_at", -1).to_list(limit)
     
     return [NotificationResponse(
         id=n["id"],
@@ -4651,7 +4801,7 @@ async def get_relatos_overview_personal(
 
     students_list = await db.users.find(
         {"personal_id": personal_id, "role": "student"},
-        {"_id": 0, "id": 1, "name": 1, "email": 1, "is_active": 1}
+        {"_id": 0, "id": 1, "name": 1, "email": 1, "is_active": 1, "profile_photo_url": 1}
     ).to_list(200)
 
     now = datetime.now(timezone.utc)
@@ -4697,6 +4847,7 @@ async def get_relatos_overview_personal(
             "student_id": sid,
             "student_name": student["name"],
             "student_email": student.get("email", ""),
+            "profile_photo_url": student.get("profile_photo_url"),
             "is_active": student.get("is_active", True),
             "has_relato_semana_atual": has_current_week,
             "latest_relato": {
@@ -4706,6 +4857,7 @@ async def get_relatos_overview_personal(
                 "calorias_semana": latest.get("calorias_semana"),
                 "carga_total_semana": latest.get("carga_total_semana"),
                 "repeticoes_semana": latest.get("repeticoes_semana"),
+                "treino_progressao_carga": latest.get("treino_progressao_carga"),
                 "dieta_aderencia": latest.get("dieta_aderencia"),
                 "treino_aderencia": latest.get("treino_aderencia"),
             } if latest else None,

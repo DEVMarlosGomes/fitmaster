@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 import { MainLayout } from "../components/MainLayout";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
@@ -31,6 +32,7 @@ import {
   FileText,
   Download,
   Sparkles,
+  Camera,
 } from "lucide-react";
 import api from "../lib/api";
 import { BACKEND_URL } from "../lib/backend";
@@ -38,6 +40,8 @@ import { toast } from "sonner";
 import { ExerciseCard } from "../components/ExerciseCard";
 import { SetTracker } from "../components/SetTracker";
 import { FAQChatPopup } from "../components/FAQChatPopup";
+import { ProfilePhotoDialog } from "../components/ProfilePhotoDialog";
+import { UserAvatar } from "../components/UserAvatar";
 import { BRAND } from "../lib/brand";
 
 const FEELING_OPTIONS = [
@@ -148,6 +152,7 @@ function ScaleLegendSelector({ title, subtitle, prompt, icon: Icon, value, onCha
 }
 
 export default function StudentDashboard() {
+  const { user, updateUser } = useAuth();
   const [workout, setWorkout] = useState(null);
   const [stats, setStats] = useState(null);
   const [selectedDay, setSelectedDay] = useState(null);
@@ -164,6 +169,7 @@ export default function StudentDashboard() {
   const [completing, setCompleting] = useState(false);
   const [downloadingAerobicPdf, setDownloadingAerobicPdf] = useState(false);
   const [lastSessionSummary, setLastSessionSummary] = useState(null);
+  const [isProfilePhotoDialogOpen, setIsProfilePhotoDialogOpen] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -505,6 +511,69 @@ export default function StudentDashboard() {
           </div>
         </section>
 
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/10 via-card/95 to-card/90">
+            <CardContent className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <UserAvatar
+                  name={user?.name}
+                  photoUrl={user?.profile_photo_url}
+                  size="2xl"
+                  className="rounded-[1.75rem] border-4 border-primary/15"
+                  fallbackClassName="rounded-[1.75rem]"
+                />
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-lg font-black tracking-tight">Foto de perfil</p>
+                    {!user?.profile_photo_url && user?.should_prompt_profile_photo && (
+                      <Badge variant="secondary">Primeiro acesso</Badge>
+                    )}
+                  </div>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {user?.profile_photo_url
+                      ? "Sua foto ja aparece para facilitar a identificacao pelo personal."
+                      : "Adicione sua foto para o personal te reconhecer mais rapido em relatos e acompanhamentos."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col items-start gap-2 sm:items-end">
+                <Button type="button" className="gap-2" onClick={() => setIsProfilePhotoDialogOpen(true)}>
+                  <Camera className="h-4 w-4" />
+                  {user?.profile_photo_url ? "Atualizar foto" : "Adicionar foto"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Use uma imagem clara do rosto para facilitar a visualizacao.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/70 bg-card/82">
+            <CardContent className="p-6">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-primary">Identificacao</p>
+              <h2 className="mt-3 text-2xl font-black tracking-tight">Seu personal te encontra mais rapido</h2>
+              <p className="mt-2 text-sm leading-7 text-muted-foreground">
+                Quando voce adiciona a foto, ela passa a aparecer nas listas de alunos e na area de relatos do personal.
+              </p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-[1.1rem] border border-border/60 bg-secondary/25 p-4">
+                  <p className="text-sm font-semibold">Relatos semanais</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Seu rosto aparece junto do resumo enviado para o personal.
+                  </p>
+                </div>
+                <div className="rounded-[1.1rem] border border-border/60 bg-secondary/25 p-4">
+                  <p className="text-sm font-semibold">Lista de alunos</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Facilita diferenciar rapidamente cada aluno no sistema.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         <Dialog
           open={!!lastSessionSummary}
           onOpenChange={(open) => {
@@ -561,6 +630,13 @@ export default function StudentDashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <ProfilePhotoDialog
+          open={isProfilePhotoDialogOpen}
+          onOpenChange={setIsProfilePhotoDialogOpen}
+          user={user}
+          onUserUpdated={updateUser}
+        />
 
         {workout.days && workout.days.length > 0 && (
           <Card className="bento-card overflow-hidden">

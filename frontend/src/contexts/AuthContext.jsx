@@ -65,13 +65,25 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const refreshUser = async () => {
+    const response = await api.get("/auth/me");
+    setUser(response.data);
+    return response.data;
+  };
+
+  const updateUser = (nextUser) => {
+    setUser((previous) => (typeof nextUser === "function" ? nextUser(previous) : nextUser));
+  };
+
   const value = {
     user,
     loading,
     login,
     register,
     logout,
-    checkAuth
+    checkAuth,
+    refreshUser,
+    updateUser,
   };
 
   return (

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { MainLayout } from "../components/MainLayout";
 import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Bell, CheckCheck, Dumbbell, Info, CheckCircle } from "lucide-react";
+import { Bell, CheckCheck, Dumbbell, Info, CheckCircle, DollarSign } from "lucide-react";
 import api from "../lib/api";
 import { toast } from "sonner";
 import { useNotifications } from "../contexts/NotificationContext";
@@ -54,6 +54,8 @@ export default function NotificationsPage() {
     switch (type) {
       case "workout":
         return <Dumbbell className="w-5 h-5 text-primary" />;
+      case "payment":
+        return <DollarSign className="w-5 h-5 text-amber-400" />;
       case "success":
         return <CheckCircle className="w-5 h-5 text-green-400" />;
       default:
@@ -119,6 +121,7 @@ export default function NotificationsPage() {
                   >
                     <div className={`p-2 rounded-lg ${
                       notification.type === "workout" ? "bg-primary/20" : 
+                      notification.type === "payment" ? "bg-amber-500/20" :
                       notification.type === "success" ? "bg-green-500/20" : "bg-cyan-500/20"
                     }`}>
                       {getIcon(notification.type)}

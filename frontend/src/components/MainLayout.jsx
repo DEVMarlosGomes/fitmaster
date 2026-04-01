@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { Button } from "../components/ui/button";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 import {
@@ -13,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "../components/ui/dropdown-menu";
-import { Badge } from "../components/ui/badge";
 import {
   Dumbbell,
   Users,
@@ -40,6 +38,8 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { BRAND } from "../lib/brand";
+import { ProfilePhotoDialog } from "./ProfilePhotoDialog";
+import { UserAvatar } from "./UserAvatar";
 
 const personalLinks = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -83,14 +83,6 @@ const getCurrentLink = (links, pathname) =>
   links.find((link) => pathname === link.href) ||
   links.find((link) => pathname.startsWith(link.href) && link.href !== "/") ||
   null;
-
-const getInitials = (name = "") =>
-  name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("") || "RC";
 
 /* ─── Brand mark: ícone azul compacto para uso na sidebar ─── */
 function SidebarBrandMark() {
@@ -208,20 +200,7 @@ function NavItem({ link, active, compact = false, onClick, theme }) {
   );
 }
 
-function UserAvatar({ name, size = "md" }) {
-  const initials = getInitials(name);
-  const sizeClass = size === "sm" ? "h-8 w-8 text-xs" : "h-9 w-9 text-sm";
-  return (
-    <div
-      className={`flex shrink-0 items-center justify-center rounded-xl font-bold text-white ${sizeClass}`}
-      style={{ background: "linear-gradient(135deg, #0081fd 0%, #0055cc 100%)" }}
-    >
-      {initials}
-    </div>
-  );
-}
-
-function UserMenu({ user, theme, toggleTheme, logout }) {
+function UserMenu({ user, theme, toggleTheme, logout, onOpenProfilePhoto }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -233,7 +212,13 @@ function UserMenu({ user, theme, toggleTheme, logout }) {
               : "border border-white/8 bg-white/4 hover:border-white/16 hover:bg-white/8"
           }`}
         >
-          <UserAvatar name={user?.name} size="sm" />
+          <UserAvatar
+            name={user?.name}
+            photoUrl={user?.profile_photo_url}
+            size="sm"
+            className="rounded-xl"
+            fallbackClassName="rounded-xl"
+          />
           <div className="hidden min-w-0 text-left sm:block">
             <p className="truncate text-[13px] font-semibold leading-tight text-foreground/90">
               {user?.name?.split(" ")[0]}
@@ -256,7 +241,12 @@ function UserMenu({ user, theme, toggleTheme, logout }) {
         <div className={`flex items-center gap-3 rounded-xl px-3 py-3 ${
           theme === "light" ? "bg-black/4" : "bg-white/4"
         }`}>
-          <UserAvatar name={user?.name} />
+          <UserAvatar
+            name={user?.name}
+            photoUrl={user?.profile_photo_url}
+            className="rounded-xl"
+            fallbackClassName="rounded-xl"
+          />
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground/90">{user?.name}</p>
             <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
@@ -274,6 +264,14 @@ function UserMenu({ user, theme, toggleTheme, logout }) {
             <Moon className="mr-2.5 h-4 w-4" />
           )}
           {theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-2" />
+        <DropdownMenuItem
+          onClick={onOpenProfilePhoto}
+          className="cursor-pointer rounded-xl px-3 py-2.5 text-sm text-foreground/70 hover:bg-primary/10 hover:text-primary focus:bg-primary/10 focus:text-primary"
+        >
+          <Camera className="mr-2.5 h-4 w-4" />
+          Foto de perfil
         </DropdownMenuItem>
         <DropdownMenuSeparator className="my-2" />
         <DropdownMenuItem
@@ -318,7 +316,12 @@ function SidebarContent({ links, user, location, compact, onLinkClick, logout, t
         className={`mx-3 mt-3 rounded-2xl p-3 sidebar-user-card ${compact ? "flex justify-center" : ""}`}
       >
         <div className={`flex items-center gap-3 ${compact ? "justify-center" : ""}`}>
-          <UserAvatar name={user?.name} />
+          <UserAvatar
+            name={user?.name}
+            photoUrl={user?.profile_photo_url}
+            className="rounded-xl"
+            fallbackClassName="rounded-xl"
+          />
           {!compact && (
             <div className="min-w-0">
               <p className="truncate text-[13px] font-semibold text-foreground/90 leading-tight">
@@ -394,17 +397,23 @@ function SidebarContent({ links, user, location, compact, onLinkClick, logout, t
    MAIN LAYOUT EXPORT
 ═══════════════════════════════════════════════════════════ */
 export const MainLayout = ({ children }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isProfilePhotoDialogOpen, setIsProfilePhotoDialogOpen] = useState(false);
 
   const isPersonal = user?.role === "personal";
-  const links = isPersonal ? personalLinks : studentLinks;
   const currentLink = isPersonal
     ? getCurrentLink(personalLinks, location.pathname)
     : getCurrentLink(studentLinks, location.pathname);
+
+  useEffect(() => {
+    if (user?.role === "student" && user?.should_prompt_profile_photo) {
+      setIsProfilePhotoDialogOpen(true);
+    }
+  }, [user?.role, user?.should_prompt_profile_photo]);
 
   const headerStyle = {
     background: "var(--header-bg)",
@@ -414,50 +423,179 @@ export const MainLayout = ({ children }) => {
 
   if (isPersonal) {
     return (
-      <div
-        className="flex min-h-dvh"
-        style={{ background: "hsl(var(--background))" }}
-      >
-        {/* ── Desktop Sidebar ── */}
+      <>
+        <div
+          className="flex min-h-dvh"
+          style={{ background: "hsl(var(--background))" }}
+        >
+          {/* ── Desktop Sidebar ── */}
+          <aside
+            className={`hidden lg:flex lg:flex-col lg:shrink-0 transition-all duration-300 ease-in-out ${
+              sidebarCollapsed ? "lg:w-[72px]" : "lg:w-[260px]"
+            }`}
+            style={{
+              position: "sticky",
+              top: 0,
+              height: "100vh",
+              overflowY: "auto",
+            }}
+          >
+            <SidebarContent
+              links={personalLinks}
+              user={user}
+              location={location}
+              compact={sidebarCollapsed}
+              onLinkClick={undefined}
+              logout={logout}
+              theme={theme}
+              toggleTheme={toggleTheme}
+              role="personal"
+            />
+          </aside>
+
+          {/* ── Main content area ── */}
+          <div className="flex flex-1 flex-col min-w-0">
+            {/* ── Top Header ── */}
+            <header
+              id="app-header"
+              className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3"
+              style={headerStyle}
+            >
+              <div className="flex items-center gap-3">
+                {/* Mobile menu trigger */}
+                <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                  <SheetTrigger asChild>
+                    <button
+                      id="mobile-menu-btn"
+                      className={`flex h-9 w-9 items-center justify-center rounded-xl transition lg:hidden ${
+                        theme === "light"
+                          ? "border border-black/8 text-foreground/60 hover:border-black/14 hover:text-foreground"
+                          : "border border-white/8 text-white/60 hover:border-white/16 hover:text-white"
+                      }`}
+                    >
+                      <Menu className="h-4 w-4" />
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent
+                    side="left"
+                    className="w-[280px] max-w-[calc(100vw-2rem)] border-0 p-0"
+                    style={{ background: "transparent" }}
+                  >
+                    <SidebarContent
+                      links={personalLinks}
+                      user={user}
+                      location={location}
+                      compact={false}
+                      onLinkClick={() => setMobileMenuOpen(false)}
+                      logout={logout}
+                      theme={theme}
+                      toggleTheme={toggleTheme}
+                      role="personal"
+                    />
+                  </SheetContent>
+                </Sheet>
+
+                {/* Collapse toggle (desktop only) */}
+                <button
+                  id="sidebar-collapse-btn"
+                  onClick={() => setSidebarCollapsed((p) => !p)}
+                  className={`hidden h-9 w-9 items-center justify-center rounded-xl transition lg:flex ${
+                    theme === "light"
+                      ? "border border-black/8 text-foreground/40 hover:border-black/14 hover:text-foreground"
+                      : "border border-white/8 text-white/40 hover:border-white/16 hover:text-white"
+                  }`}
+                  title={sidebarCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
+                >
+                  {sidebarCollapsed ? (
+                    <ChevronRight className="h-4 w-4" />
+                  ) : (
+                    <ChevronLeft className="h-4 w-4" />
+                  )}
+                </button>
+
+                {/* Page breadcrumb */}
+                <div className="hidden sm:block">
+                  <p
+                    className="text-[10px] font-bold uppercase tracking-[0.20em]"
+                    style={{ color: "#0081fd" }}
+                  >
+                    {BRAND.name}
+                  </p>
+                  <h1
+                    className="text-base font-bold leading-tight text-foreground/90 sm:text-lg"
+                    style={{ fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "-0.01em" }}
+                  >
+                    {currentLink?.label || "Painel do Treinador"}
+                  </h1>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <NotificationBell theme={theme} />
+                <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
+                <UserMenu
+                  user={user}
+                  theme={theme}
+                  toggleTheme={toggleTheme}
+                  logout={logout}
+                  onOpenProfilePhoto={() => setIsProfilePhotoDialogOpen(true)}
+                />
+              </div>
+            </header>
+
+            {/* ── Page content ── */}
+            <main className="flex-1 overflow-auto">
+              <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8">
+                {children}
+              </div>
+            </main>
+          </div>
+        </div>
+        <ProfilePhotoDialog
+          open={isProfilePhotoDialogOpen}
+          onOpenChange={setIsProfilePhotoDialogOpen}
+          user={user}
+          onUserUpdated={updateUser}
+        />
+      </>
+    );
+  }
+
+  // ── STUDENT LAYOUT ──
+  return (
+    <>
+      <div className="flex min-h-dvh" style={{ background: "hsl(var(--background))" }}>
+        {/* Desktop Sidebar */}
         <aside
-          className={`hidden lg:flex lg:flex-col lg:shrink-0 transition-all duration-300 ease-in-out ${
-            sidebarCollapsed ? "lg:w-[72px]" : "lg:w-[260px]"
-          }`}
-          style={{
-            position: "sticky",
-            top: 0,
-            height: "100vh",
-            overflowY: "auto",
-          }}
+          className="hidden xl:flex xl:flex-col xl:shrink-0 xl:w-[260px]"
+          style={{ position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}
         >
           <SidebarContent
-            links={personalLinks}
+            links={studentLinks}
             user={user}
             location={location}
-            compact={sidebarCollapsed}
+            compact={false}
             onLinkClick={undefined}
             logout={logout}
             theme={theme}
             toggleTheme={toggleTheme}
-            role="personal"
+            role="student"
           />
         </aside>
 
-        {/* ── Main content area ── */}
         <div className="flex flex-1 flex-col min-w-0">
-          {/* ── Top Header ── */}
+          {/* Header */}
           <header
-            id="app-header"
+            id="student-header"
             className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3"
             style={headerStyle}
           >
             <div className="flex items-center gap-3">
-              {/* Mobile menu trigger */}
               <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
                 <SheetTrigger asChild>
                   <button
-                    id="mobile-menu-btn"
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition lg:hidden ${
+                    id="student-mobile-menu-btn"
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition xl:hidden ${
                       theme === "light"
                         ? "border border-black/8 text-foreground/60 hover:border-black/14 hover:text-foreground"
                         : "border border-white/8 text-white/60 hover:border-white/16 hover:text-white"
@@ -472,7 +610,7 @@ export const MainLayout = ({ children }) => {
                   style={{ background: "transparent" }}
                 >
                   <SidebarContent
-                    links={personalLinks}
+                    links={studentLinks}
                     user={user}
                     location={location}
                     compact={false}
@@ -480,30 +618,11 @@ export const MainLayout = ({ children }) => {
                     logout={logout}
                     theme={theme}
                     toggleTheme={toggleTheme}
-                    role="personal"
+                    role="student"
                   />
                 </SheetContent>
               </Sheet>
 
-              {/* Collapse toggle (desktop only) */}
-              <button
-                id="sidebar-collapse-btn"
-                onClick={() => setSidebarCollapsed((p) => !p)}
-                className={`hidden h-9 w-9 items-center justify-center rounded-xl transition lg:flex ${
-                  theme === "light"
-                    ? "border border-black/8 text-foreground/40 hover:border-black/14 hover:text-foreground"
-                    : "border border-white/8 text-white/40 hover:border-white/16 hover:text-white"
-                }`}
-                title={sidebarCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-              >
-                {sidebarCollapsed ? (
-                  <ChevronRight className="h-4 w-4" />
-                ) : (
-                  <ChevronLeft className="h-4 w-4" />
-                )}
-              </button>
-
-              {/* Page breadcrumb */}
               <div className="hidden sm:block">
                 <p
                   className="text-[10px] font-bold uppercase tracking-[0.20em]"
@@ -515,7 +634,7 @@ export const MainLayout = ({ children }) => {
                   className="text-base font-bold leading-tight text-foreground/90 sm:text-lg"
                   style={{ fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "-0.01em" }}
                 >
-                  {currentLink?.label || "Painel do Treinador"}
+                  {currentLink?.label || "Area do Aluno"}
                 </h1>
               </div>
             </div>
@@ -523,147 +642,66 @@ export const MainLayout = ({ children }) => {
             <div className="flex items-center gap-1.5 sm:gap-2">
               <NotificationBell theme={theme} />
               <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-              <UserMenu user={user} theme={theme} toggleTheme={toggleTheme} logout={logout} />
+              <UserMenu
+                user={user}
+                theme={theme}
+                toggleTheme={toggleTheme}
+                logout={logout}
+                onOpenProfilePhoto={() => setIsProfilePhotoDialogOpen(true)}
+              />
             </div>
           </header>
 
-          {/* ── Page content ── */}
-          <main className="flex-1 overflow-auto">
+          {/* Page content */}
+          <main className="flex-1 overflow-auto pb-24 xl:pb-0">
             <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8">
               {children}
             </div>
           </main>
         </div>
-      </div>
-    );
-  }
 
-  // ── STUDENT LAYOUT ──
-  return (
-    <div className="flex min-h-dvh" style={{ background: "hsl(var(--background))" }}>
-      {/* Desktop Sidebar */}
-      <aside
-        className="hidden xl:flex xl:flex-col xl:shrink-0 xl:w-[260px]"
-        style={{ position: "sticky", top: 0, height: "100vh", overflowY: "auto" }}
-      >
-        <SidebarContent
-          links={studentLinks}
-          user={user}
-          location={location}
-          compact={false}
-          onLinkClick={undefined}
-          logout={logout}
-          theme={theme}
-          toggleTheme={toggleTheme}
-          role="student"
-        />
-      </aside>
-
-      <div className="flex flex-1 flex-col min-w-0">
-        {/* Header */}
-        <header
-          id="student-header"
-          className="sticky top-0 z-40 flex items-center justify-between gap-3 px-4 py-2.5 sm:px-5 sm:py-3"
-          style={headerStyle}
+        {/* ── Mobile Bottom Dock ── */}
+        <nav
+          id="mobile-bottom-dock"
+          className="fixed inset-x-3 bottom-3 z-40 xl:hidden"
+          style={{
+            background: "var(--dock-bg)",
+            border: "1px solid var(--dock-border)",
+            borderRadius: "1.25rem",
+            backdropFilter: "blur(24px) saturate(150%)",
+            boxShadow: "0 16px 50px -18px var(--shadow-color)",
+          }}
         >
-          <div className="flex items-center gap-3">
-            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-              <SheetTrigger asChild>
-                <button
-                  id="student-mobile-menu-btn"
-                  className={`flex h-9 w-9 items-center justify-center rounded-xl transition xl:hidden ${
-                    theme === "light"
-                      ? "border border-black/8 text-foreground/60 hover:border-black/14 hover:text-foreground"
-                      : "border border-white/8 text-white/60 hover:border-white/16 hover:text-white"
+          <div className="grid grid-cols-4 gap-1 p-2">
+            {studentDockLinks.map((link) => {
+              const active = location.pathname === link.href;
+              return (
+                <Link
+                  key={link.href}
+                  to={link.href}
+                  className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-center transition-all ${
+                    active
+                      ? "bg-primary text-white shadow-[0_2px_14px_-2px_rgba(0,129,253,0.55)]"
+                      : theme === "light"
+                      ? "text-foreground/40 hover:text-foreground/70"
+                      : "text-white/40 hover:text-white/70"
                   }`}
                 >
-                  <Menu className="h-4 w-4" />
-                </button>
-              </SheetTrigger>
-              <SheetContent
-                side="left"
-                className="w-[280px] max-w-[calc(100vw-2rem)] border-0 p-0"
-                style={{ background: "transparent" }}
-              >
-                <SidebarContent
-                  links={studentLinks}
-                  user={user}
-                  location={location}
-                  compact={false}
-                  onLinkClick={() => setMobileMenuOpen(false)}
-                  logout={logout}
-                  theme={theme}
-                  toggleTheme={toggleTheme}
-                  role="student"
-                />
-              </SheetContent>
-            </Sheet>
-
-            <div className="hidden sm:block">
-              <p
-                className="text-[10px] font-bold uppercase tracking-[0.20em]"
-                style={{ color: "#0081fd" }}
-              >
-                {BRAND.name}
-              </p>
-              <h1
-                className="text-base font-bold leading-tight text-foreground/90 sm:text-lg"
-                style={{ fontFamily: "'Barlow Condensed', sans-serif", letterSpacing: "-0.01em" }}
-              >
-                {currentLink?.label || "Area do Aluno"}
-              </h1>
-            </div>
+                  <link.icon className="h-4 w-4" strokeWidth={active ? 2.2 : 1.8} />
+                  <span className="text-[10px] font-semibold tracking-wide">{link.label}</span>
+                </Link>
+              );
+            })}
           </div>
-
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <NotificationBell theme={theme} />
-            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
-            <UserMenu user={user} theme={theme} toggleTheme={toggleTheme} logout={logout} />
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-auto pb-24 xl:pb-0">
-          <div className="mx-auto max-w-[1440px] px-4 py-5 sm:px-5 sm:py-6 lg:px-8">
-            {children}
-          </div>
-        </main>
+        </nav>
       </div>
-
-      {/* ── Mobile Bottom Dock ── */}
-      <nav
-        id="mobile-bottom-dock"
-        className="fixed inset-x-3 bottom-3 z-40 xl:hidden"
-        style={{
-          background: "var(--dock-bg)",
-          border: "1px solid var(--dock-border)",
-          borderRadius: "1.25rem",
-          backdropFilter: "blur(24px) saturate(150%)",
-          boxShadow: "0 16px 50px -18px var(--shadow-color)",
-        }}
-      >
-        <div className="grid grid-cols-4 gap-1 p-2">
-          {studentDockLinks.map((link) => {
-            const active = location.pathname === link.href;
-            return (
-              <Link
-                key={link.href}
-                to={link.href}
-                className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-center transition-all ${
-                  active
-                    ? "bg-primary text-white shadow-[0_2px_14px_-2px_rgba(0,129,253,0.55)]"
-                    : theme === "light"
-                    ? "text-foreground/40 hover:text-foreground/70"
-                    : "text-white/40 hover:text-white/70"
-                }`}
-              >
-                <link.icon className="h-4 w-4" strokeWidth={active ? 2.2 : 1.8} />
-                <span className="text-[10px] font-semibold tracking-wide">{link.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-    </div>
+      <ProfilePhotoDialog
+        open={isProfilePhotoDialogOpen}
+        onOpenChange={setIsProfilePhotoDialogOpen}
+        user={user}
+        onUserUpdated={updateUser}
+        promptMode={Boolean(user?.should_prompt_profile_photo)}
+      />
+    </>
   );
 };
