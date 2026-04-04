@@ -3,6 +3,7 @@ import { Toaster } from "./components/ui/sonner";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { PwaInstallProvider } from "./contexts/PwaInstallContext";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import PersonalDashboard from "./pages/PersonalDashboard";
@@ -208,12 +209,14 @@ function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
-        <AuthProvider>
-          <NotificationProvider>
-            <AppRoutes />
-            <Toaster position="top-right" richColors closeButton />
-          </NotificationProvider>
-        </AuthProvider>
+        <PwaInstallProvider>
+          <AuthProvider>
+            <NotificationProvider>
+              <AppRoutes />
+              <Toaster position="top-right" richColors closeButton />
+            </NotificationProvider>
+          </AuthProvider>
+        </PwaInstallProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

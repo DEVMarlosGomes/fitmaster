@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useNotifications } from "../contexts/NotificationContext";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
+import { PwaInstallButton } from "./PwaInstallButton";
 import { ScrollArea } from "../components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTrigger } from "../components/ui/sheet";
 import {
@@ -531,6 +532,11 @@ export const MainLayout = ({ children }) => {
               </div>
 
               <div className="flex items-center gap-1.5 sm:gap-2">
+                <PwaInstallButton
+                  size="sm"
+                  variant="outline"
+                  label="Instalar"
+                />
                 <NotificationBell theme={theme} />
                 <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
                 <UserMenu
@@ -640,6 +646,11 @@ export const MainLayout = ({ children }) => {
             </div>
 
             <div className="flex items-center gap-1.5 sm:gap-2">
+              <PwaInstallButton
+                size="sm"
+                variant="outline"
+                label="Instalar"
+              />
               <NotificationBell theme={theme} />
               <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
               <UserMenu

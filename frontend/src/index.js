@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "@/index.css";
 import App from "@/App";
+import { registerServiceWorker } from "@/registerServiceWorker";
 
 // Suppress harmless ResizeObserver loop errors (Recharts/Portal layout)
 if (typeof window !== "undefined") {
@@ -58,3 +59,5 @@ root.render(
     <App />
   </React.StrictMode>,
 );
+
+registerServiceWorker();

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
-import { Button } from "../components/ui/button";
+import { PwaInstallButton } from "../components/PwaInstallButton";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Mail, Lock, Eye, EyeOff, Moon, Sun, ShieldCheck } from "lucide-react";
@@ -339,6 +339,14 @@ export default function LoginPage() {
                   "Entrar no painel"
                 )}
               </button>
+
+              <PwaInstallButton
+                fullWidth
+                variant="outline"
+                size="lg"
+                label="Instalar app no dispositivo"
+                className="rounded-[0.85rem] border-primary/20 text-foreground/85 hover:border-primary/40 hover:bg-primary/8"
+              />
             </form>
 
             {/* Footer */}
